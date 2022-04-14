@@ -25,7 +25,6 @@ include_directories(src/dili)
 
 add_executable(example src/example.cpp)
 target_link_libraries(example dili_func)
-target_link_libraries(example parse)
 target_link_libraries(example butree_func)
 target_link_libraries(example global_func)
 
