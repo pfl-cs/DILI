@@ -13,8 +13,6 @@ else()
     set(CMAKE_CXX_FLAGS "-lpthread -mpopcnt -O3 -march=native -Wextra -mlzcnt -mcmodel=large -fpermissive")
 endif()
 
-add_library(parse src/parse.cpp)
-
 add_subdirectory(src/global)
 add_subdirectory(src/dili)
 add_subdirectory(src/butree)
