@@ -51,12 +51,11 @@ long load_data_int(const char *data_path, long *int_data) {
 
     long act_data_size = 0;
     long rc = fread(&act_data_size,sizeof(long), 1, fp);
-    cout << "act_data_size = " << act_data_size << endl;
+//    cout << "act_data_size = " << act_data_size << endl;
 
     rc = fread(int_data, sizeof(long), act_data_size, fp);
     assert(rc == act_data_size);
     fclose(fp);
-//    printf("act_data_size = %lu\n", act_data_size);
 
     return act_data_size;
 }
@@ -71,12 +70,11 @@ long load_data_uint(const char *data_path, unsigned long *uint_data) {
 
     long act_data_size = 0;
     long rc = fread(&act_data_size,sizeof(long), 1, fp);
-    cout << "act_data_size = " << act_data_size << endl;
+//    cout << "act_data_size = " << act_data_size << endl;
 
     rc = fread(uint_data, sizeof(unsigned long), act_data_size, fp);
     assert(rc == act_data_size);
     fclose(fp);
-//    printf("act_data_size = %lu\n", act_data_size);
 
     return act_data_size;
 }
@@ -91,7 +89,7 @@ long load_data_pair(const char *data_path, std::pair<long, long> *_data) {
 
     long act_data_size = 0;
     long rc = fread(&act_data_size,sizeof(long), 1, fp);
-    cout << "act_data_size = " << act_data_size << endl;
+//    cout << "act_data_size = " << act_data_size << endl;
     long *data = new long[2 * act_data_size];
 
     rc = fread(data, sizeof(long), act_data_size * 2, fp);
@@ -101,7 +99,7 @@ long load_data_pair(const char *data_path, std::pair<long, long> *_data) {
         _data[i].first = data[2 * i];
         _data[i].second = data[2 * i + 1];
     }
-//    printf("act_data_size = %lu\n", act_data_size);
+
     delete[] data;
 
     return act_data_size;
@@ -161,7 +159,6 @@ long load_data_float(const char *data_path, float *float_data) {
     rc = fread(float_data,sizeof(float), act_data_size, fp);
     assert(rc == act_data_size);
     fclose(fp);
-    printf("act_data_size = %lu\n", act_data_size);
 
     return act_data_size;
 }
@@ -176,7 +173,7 @@ long load_data_double(const char *data_path, double *data) {
 
     long act_data_size = 0;
     long rc = fread(&act_data_size, sizeof(long), 1, fp);
-    cout << "act_data_size = " << act_data_size << endl;
+//    cout << "act_data_size = " << act_data_size << endl;
 
     rc = fread(data, sizeof(double), act_data_size, fp);
     assert(rc == act_data_size);

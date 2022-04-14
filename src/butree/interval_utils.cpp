@@ -47,7 +47,7 @@ void check_intervals(interval *i_ptr) {
         i_ptr = i_ptr->rSib;
         ++count;
     }
-    cout << "****count = " << count << endl;
+//    cout << "****count = " << count << endl;
 }
 
 void print_intervals_info(interval *i_ptr) {
@@ -301,7 +301,7 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
     long max_s_j = N / 32;
     long least_num_merge = s_j - max_s_j;
 
-    cout << "step-2 finished. s_j = " << s_j << ", least_num_merge = " << least_num_merge << ", cs.size() = " << cs.size() << endl;
+//    cout << "step-2 finished. s_j = " << s_j << ", least_num_merge = " << least_num_merge << ", cs.size() = " << cs.size() << endl;
 
     long n_merges = 0;
     last_size = cs.size();
@@ -342,10 +342,10 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
                 cs.insert(lSib);
             }
             ++n_merges;
-            if (n_merges % 1000000 == 0) {
-//            check_intervals(leftest_interval);
-                cout << "step-3, n_merges = " << n_merges << endl;
-            }
+//            if (n_merges % 1000000 == 0) {
+////            check_intervals(leftest_interval);
+//                cout << "step-3, n_merges = " << n_merges << endl;
+//            }
 
             assert(last_size == cs.size() + 1);
             last_size = cs.size();
@@ -356,7 +356,9 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
     }
 
 //    check_intervals(leftest_interval);
-    cout << "cs.size() = " << cs.size() << endl;
+
+
+//    cout << "cs.size() = " << cs.size() << endl;
     interval *i_ptr = leftest_interval;
 
     double total_linear_loss = 0;
@@ -372,9 +374,10 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
 
     }
 //    border_set.insert(X[N-1] + 1);
-    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
 
-    print_intervals_info(leftest_interval);
+//    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
+
+//    print_intervals_info(leftest_interval);
     check_intervals(leftest_interval);
 
     double best_loss = cal_loss(N, border_set.size() - 1, total_linear_loss, true);
@@ -452,12 +455,10 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
                 best_loss = curr_loss;
             }
 
-            if (n_merges % 10000 == 0) {
-                cout << "step-5, n_merges = " << n_merges << ", n_intervals = " << border_set.size() - 1 << ", loss = "
-                     << curr_loss << ", best_loss = " << best_loss << endl;
-//            print_intervals_info(leftest_interva
-//            l);
-            }
+//            if (n_merges % 10000 == 0) {
+//                cout << "step-5, n_merges = " << n_merges << ", n_intervals = " << border_set.size() - 1 << ", loss = "
+//                     << curr_loss << ", best_loss = " << best_loss << endl;
+//            }
         } else {
             cs.insert(i_ptr);
             cs.insert(original_rSib);
@@ -472,7 +473,7 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
     complete_losses.insert(complete_losses.end(), deleted_losses.rbegin(), deleted_losses.rend());
 
     border_set.insert(deleted_borders.begin() + best_idx, deleted_borders.end());
-    cout << "best_border_set.size() = " << border_set.size() << ", best_idx = " << best_idx << endl;
+//    cout << "best_border_set.size() = " << border_set.size() << ", best_idx = " << best_idx << endl;
 
 
     best_borders.insert(best_borders.end(), border_set.begin(), border_set.end());
@@ -581,7 +582,7 @@ void get_complete_partition_borders(long *X, double *probs, long N, int h, long 
     long max_s_j = N / min_fanout;
     long least_num_merge = s_j - max_s_j;
 
-    cout << "step-2 finished. s_j = " << s_j << ", least_num_merge = " << least_num_merge << ", cs.size() = " << cs.size() << endl;
+//    cout << "step-2 finished. s_j = " << s_j << ", least_num_merge = " << least_num_merge << ", cs.size() = " << cs.size() << endl;
 
     long n_merges = 0;
     last_size = cs.size();
@@ -618,9 +619,9 @@ void get_complete_partition_borders(long *X, double *probs, long N, int h, long 
                 cs.insert(lSib);
             }
             ++n_merges;
-            if (n_merges % 100000 == 0) {
-                cout << "step-3, n_merges = " << n_merges << endl;
-            }
+//            if (n_merges % 100000 == 0) {
+//                cout << "step-3, n_merges = " << n_merges << endl;
+//            }
 
             assert(last_size == cs.size() + 1);
             last_size = cs.size();
@@ -630,7 +631,7 @@ void get_complete_partition_borders(long *X, double *probs, long N, int h, long 
         }
     }
 
-    cout << "cs.size() = " << cs.size() << endl;
+//    cout << "cs.size() = " << cs.size() << endl;
     if (max_s_j != cs.size() + 1) {
         cout << "max_s_j = " << max_s_j << ", cs.size = " << cs.size() << endl;
     }
@@ -652,9 +653,9 @@ void get_complete_partition_borders(long *X, double *probs, long N, int h, long 
     }
     assert(border_set.size() == max_s_j);
 //    border_set.insert(X[N-1] + 1);
-    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
+//    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
 
-    print_intervals_info(leftest_interval);
+//    print_intervals_info(leftest_interval);
     check_intervals(leftest_interval);
 
     n_merges = 0;
@@ -706,9 +707,9 @@ void get_complete_partition_borders(long *X, double *probs, long N, int h, long 
             }
 
             ++n_merges;
-            if (n_merges % 100000 == 0) {
-                cout << "step-5, n_merges = " << n_merges << ", n_intervals = " << border_set.size() - 1 << endl;
-            }
+//            if (n_merges % 100000 == 0) {
+//                cout << "step-5, n_merges = " << n_merges << ", n_intervals = " << border_set.size() - 1 << endl;
+//            }
         } else {
             cs.insert(original_rSib);
             cs.insert(i_ptr);
@@ -1079,7 +1080,7 @@ long estimate_ideal_layout_complex(int h, long N_last, doubleVec &rmses, long N_
     }
 
     int step = 1000 / tmp;
-    cout << "start_idx = " << start_idx << ", end_idx = " << end_idx << ", step = " << step << endl;
+//    cout << "start_idx = " << start_idx << ", end_idx = " << end_idx << ", step = " << step << endl;
 
 
     for (long i = start_idx; i <= end_idx; i += step) { //i: curr_n_nodes
@@ -1241,8 +1242,8 @@ long estimate_ideal_layout(int h, long N_last, doubleVec &rmses, long N_at_h0, d
         tmp *= 10;
     }
     int step = 1000 / tmp;
-    cout << "start_idx = " << start_idx << ", end_idx = " << end_idx << ", step = " << step
-         << ", N_last = " << N_last << ", rmses.size() = " << rmses.size() << ", min_leaf_fan = " << min_leaf_fan << endl;
+//    cout << "start_idx = " << start_idx << ", end_idx = " << end_idx << ", step = " << step
+//         << ", N_last = " << N_last << ", rmses.size() = " << rmses.size() << ", min_leaf_fan = " << min_leaf_fan << endl;
 
     for (long i = start_idx; i <= end_idx; i += step) { //i: curr_n_nodes
         bool print = false;
@@ -1300,6 +1301,7 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
         bool restore_status = restore_complete_borders_and_losses(mirror_dir, 0, h0_borders, h0_rmses);
         if (!restore_status) {
 //            get_complete_partition_borders(X, probs, N, 0, 32, fanThreashold/2, h0_borders, h0_rmses, interval_type);
+            cout << "Building BU-Tree...... This step may take several minutes but will be executed once only." << endl;
             get_complete_partition_borders(X, probs, N, 0, buMinFan, fanThreashold/2, h0_borders, h0_rmses, interval_type);
             string h0_borders_path = mirror_dir + "/h0_borders";
             save_data_int_vec(h0_borders_path.c_str(), h0_borders);
@@ -1314,11 +1316,11 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
                 ++xcount;
             }
         }
-        cout << "######, xcount = " << xcount << endl;
+//        cout << "######, xcount = " << xcount << endl;
 
         long h0_min_size = h0_borders.back();
         h0_borders.pop_back();
-        cout << "h0_borsers.size() = " << h0_borders.size() << ", h0_rmses.size = " << h0_rmses.size() << endl;
+//        cout << "h0_borsers.size() = " << h0_borders.size() << ", h0_rmses.size = " << h0_rmses.size() << endl;
 
         long est_next_n_nodes = 0;
         double h0_loss = 0;
@@ -1327,14 +1329,14 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
         mirror.push_back(longVec());
         assert(h0_min_size < est_n_nodes);
 
-        cout << "h0, est_n_nodes = " << est_n_nodes << endl;
+//        cout << "h0, est_n_nodes = " << est_n_nodes << endl;
         mirror[0].insert(mirror[0].end(), h0_borders.begin(), h0_borders.begin() + est_n_nodes);
         sort(mirror[0].begin(), mirror[0].end());
 //        string h0_path = mirror_dir + "/h0.dat";
 //        save_data_int_vec(h0_path.c_str(), mirror[0]);
     }
 
-    cout << "leaf nodes have been created. n_nodes = " << mirror[0].size() << endl;
+//    cout << "BU leaf nodes have been created. #nodes = " << mirror[0].size() << endl;
 
     longVec root_info({X[0]});
     while (true){
@@ -1360,7 +1362,7 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
         double root_bin_loss = (root_rmse > 2) ? 2 * log(root_rmse) / log(2.0) : 2;
         double root_loss = std::min<double>(root_lin_loss, root_bin_loss);
         root_loss *= (1 + R2) * pow(RHO, curr_h);
-        cout << "curr_h = " << curr_h << ", root_loss = " << root_loss << endl;
+//        cout << "curr_h = " << curr_h << ", root_loss = " << root_loss << endl;
 
         longVec hi_borders;
         doubleVec hi_rmses;
@@ -1372,7 +1374,7 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
 
         long hi_min_size = hi_borders.back();
         hi_borders.pop_back();
-        cout << "h" << curr_h << "_borsers.size() = " << hi_borders.size() << ", h" << curr_h << "_rmses.size = " << hi_rmses.size() << endl;
+//        cout << "h" << curr_h << "_borsers.size() = " << hi_borders.size() << ", h" << curr_h << "_rmses.size = " << hi_rmses.size() << endl;
 
         long est_next_n_nodes = 0;
         double hi_loss = 0;
@@ -1388,7 +1390,7 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
             mirror.push_back(longVec());
 //            assert(hi_min_size < est_n_nodes);
 
-            cout << "h" << curr_h <<", est_n_nodes = " << est_n_nodes << endl;
+//            cout << "h" << curr_h <<", est_n_nodes = " << est_n_nodes << endl;
             mirror[curr_h].insert(mirror[curr_h].end(), hi_borders.begin(), hi_borders.begin() + est_n_nodes);
             sort(mirror[curr_h].begin(), mirror[curr_h].end());
         }
@@ -1415,7 +1417,7 @@ void restore_mirror(const string &mirror_dir, l_matrix &mirror, bool ideal) {
 //            long *tmp_data = new long[lv.size()];
 //            std::copy(lv.begin(), lv.end(), tmp_data);
 //            check_order(tmp_data, lv.size());
-            cout << "h = " << h << ", lv.size = " << lv.size() << endl;
+//            cout << "h = " << h << ", lv.size = " << lv.size() << endl;
             ++h;
         } else {
             break;

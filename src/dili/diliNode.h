@@ -20,9 +20,6 @@ struct diliNode;
 struct fan2Leaf;
 
 namespace dili_auxiliary {
-    extern std::vector<fan2Leaf*> empty_fan2leaves;
-    extern std::vector<diliNode*> empty_fan2nodes;
-    extern std::vector<diliNode*> empty_nodes;
     extern long *retrain_keys;
     extern long *retrain_payloads;
     void init_insert_aux_vars();
@@ -813,31 +810,16 @@ struct diliNode{
 
 #ifndef ALLOW_FAN2_NODE
                     else if (n_keys_this_child == 2) {
-                        fan2Leaf *fan2child;
-                        if (!(dili_auxiliary::empty_fan2leaves.empty())) {
-                            fan2child = dili_auxiliary::empty_fan2leaves.back();
-                            dili_auxiliary::empty_fan2leaves.pop_back();
-                        } else {
-                            fan2child = new fan2Leaf();
-                        }
-                        fan2child->k1 = keys[last_k_id];
-                        fan2child->p1 = payloads[last_k_id];
-                        fan2child->k2 = keys[last_k_id + 1];
-                        fan2child->p2 = payloads[last_k_id + 1];
+                        fan2Leaf *fan2child = new fan2Leaf(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1], payloads[last_k_id + 1]);
+//                        fan2child->k1 = keys[last_k_id];
+//                        fan2child->p1 = payloads[last_k_id];
+//                        fan2child->k2 = keys[last_k_id + 1];
+//                        fan2child->p2 = payloads[last_k_id + 1];
                         kp_data[last_pos].setFan2Child(fan2child);
                         total_n_travs += 4;
                     }
 #else
                         else if (n_keys_this_child == 2) {
-//                    diliNode *fan2node;
-//                    if (!(dili_auxiliary::empty_fan2nodes.empty())) {
-//                        fan2node = dili_auxiliary::empty_fan2nodes.back();
-//                        dili_auxiliary::empty_fan2nodes.pop_back();
-//                        assert(fan2node->num_nonempty == 2);
-//                    } else {
-//                        fan2node = new diliNode(false);
-//                        fan2node->init(2);
-//                    }
                     diliNode *fan2node = new diliNode(false);
                     fan2node->init(2);
                     fan2node->put_two_keys(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1],
@@ -897,32 +879,16 @@ struct diliNode{
 
 #ifndef ALLOW_FAN2_NODE
             else if (n_keys_this_child == 2) {
-                fan2Leaf *fan2child;
-                if (!(dili_auxiliary::empty_fan2leaves.empty())) {
-                    fan2child = dili_auxiliary::empty_fan2leaves.back();
-                    dili_auxiliary::empty_fan2leaves.pop_back();
-                } else {
-                    fan2child = new fan2Leaf();
-                }
-                fan2child->k1 = keys[last_k_id];
-                fan2child->p1 = payloads[last_k_id];
-                fan2child->k2 = keys[last_k_id + 1];
-                fan2child->p2 = payloads[last_k_id + 1];
+                fan2Leaf *fan2child = new fan2Leaf(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1], payloads[last_k_id + 1]);
+//                fan2child->k1 = keys[last_k_id];
+//                fan2child->p1 = payloads[last_k_id];
+//                fan2child->k2 = keys[last_k_id + 1];
+//                fan2child->p2 = payloads[last_k_id + 1];
                 kp_data[last_pos].setFan2Child(fan2child);
                 total_n_travs += 4;
             }
 #else
             else if (n_keys_this_child == 2) {
-//                diliNode *fan2node;
-//                if (!(dili_auxiliary::empty_fan2nodes.empty())) {
-//                    fan2node = dili_auxiliary::empty_fan2nodes.back();
-//                    dili_auxiliary::empty_fan2nodes.pop_back();
-//                    assert(fan2node->num_nonempty == 2);
-//                } else {
-//                    fan2node = new diliNode(false);
-//                    fan2node->init(2);
-//                }
-
                 diliNode *fan2node = new diliNode(false);
                 fan2node->init(2);
                 fan2node->put_two_keys(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1],
@@ -1025,13 +991,14 @@ struct diliNode{
 //                if (num_nonempty >= LEAF_MAX_CAPACIY) {
 //                    set_int_flag();
 //                }
-
-
-//                if (if_retrain()) {
-////                    collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
-//                    inc_n_adjust();
-////                    distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
-//                }
+                if (num_nonempty < LEAF_MAX_CAPACIY) {
+                    if (if_retrain()) {
+                        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+                        inc_n_adjust();
+                        init();
+                        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+                    }
+                }
             }
             return if_inserted;
         } else if (kp.key == -2) {
@@ -1076,7 +1043,6 @@ struct diliNode{
             }
 
             kp.setChild(child);
-//            dili_auxiliary::empty_fan2leaves.push_back(fan2child);
             return true;
         } else if (kp.key == _key) {
             return false;
@@ -1108,17 +1074,9 @@ struct diliNode{
 //        int tmp = 1;
 //        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads, k1, p1, k2, p2, pred);
 //        inc_n_adjust();
+//        init();
 //        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
 //    } else {
-
-//            fan2Leaf *fan2child;
-//            if (!(dili_auxiliary::empty_fan2leaves.empty())) {
-//                fan2child = dili_auxiliary::empty_fan2leaves.back();
-//                dili_auxiliary::empty_fan2leaves.pop_back();
-//                fan2child->set(k1, p1, k2, p2);
-//            } else {
-//                fan2child = new fan2Leaf(k1, p1, k2, p2);
-//            }
 
             fan2Leaf *fan2child = new fan2Leaf(k1, p1, k2, p2);
             kp.setFan2Child(fan2child);
@@ -1195,15 +1153,6 @@ struct diliNode{
 //        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
 //    } else {
 
-//            diliNode *fan2node;
-//            if (!(dili_auxiliary::empty_fan2nodes.empty())) {
-//                fan2node = dili_auxiliary::empty_fan2nodes.back();
-//                dili_auxiliary::empty_fan2nodes.pop_back();
-//                assert(fan2node->num_nonempty == 2);
-//            } else {
-//                fan2node = new diliNode(false);
-//                fan2node->init(2);
-//            }
 
             diliNode *fan2node = new diliNode(false);
             fan2node->init(2);
@@ -1213,136 +1162,6 @@ struct diliNode{
         }
     }
 #endif
-
-    inline bool leaf_insert(const long &_key, const long &_payload) {
-        int pred = LR_PRED(a, b, _key, fanout);
-        keyPayload &kp = kp_data[pred];
-//        if (_key == 957900359748l) {
-//            cout << "key = " << _key << ", is_internal = " << is_internal() << ", pred = " << pred << ", num_nonempty = " << num_nonempty << ", fanout = "
-//                 << fanout << ", kp.key = " << kp.key << ", empty_fan2leaves.size = " << dili_auxiliary::empty_fan2leaves.size() << endl;
-//        }
-        if (kp.key < -2) {
-            kp.assign(_key, _payload);
-            ++num_nonempty;
-            ++total_n_travs;
-            if (num_nonempty >= LEAF_MAX_CAPACIY) {
-                set_int_flag();
-            }
-            return true;
-        } else if (kp.key == -1) {
-            diliNode *child = kp.child;
-            long child_last_total_n_travs = child->total_n_travs;
-            bool if_inserted = child->leaf_insert(_key, _payload);
-            if (if_inserted) {
-                ++num_nonempty;
-                ++total_n_travs;
-                total_n_travs += (child->total_n_travs - child_last_total_n_travs);
-                if (num_nonempty >= LEAF_MAX_CAPACIY) {
-                    set_int_flag();
-                }
-//                if (if_retrain()) {
-//                    cout << "+++++1. prepare to retrain. key = " << _key << ", num_nonempty = " << num_nonempty
-//                            << ", fanout = " << fanout << ", pred = " << pred << endl;
-//                    collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
-//                    cout << "+++++2. here is OK." << endl;
-//                    inc_n_adjust();
-//                    cout << "+++++3. here is OK." << endl;
-//                    distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
-//                    cout << "+++++4. here is OK." << endl;
-//                }
-            }
-            return if_inserted;
-        } else if (kp.key == -2) {
-            total_n_travs += 2;
-            fan2Leaf *fan2child = kp.fan2child;
-            long k1 = fan2child->k1;
-            long p1 = fan2child->p1;
-            long k2 = fan2child->k2;
-            long p2 = fan2child->p2;
-            if (_key == k1 || _key == k2) {
-                return false;
-            }
-            ++num_nonempty;
-            if (num_nonempty >= LEAF_MAX_CAPACIY) {
-                set_int_flag();
-            }
-            /*
-            diliNode *child;
-            if (!(dili_auxiliary::empty_nodes.empty())) {
-                child = dili_auxiliary::empty_nodes.back();
-                dili_auxiliary::empty_nodes.pop_back();
-                assert(child->num_nonempty == 3);
-            } else {
-                child = new diliNode(false);
-                child->init(3);
-            }*/
-            diliNode *child = new diliNode(false);
-            child->init(3);
-
-            if (_key > k2) {
-                child->put_three_keys(k1, p1, k2, p2, _key, _payload);
-            } else if (_key < k1) {
-                child->put_three_keys(_key, _payload, k1, p1, k2, p2);
-            } else {
-                child->put_three_keys(k1, p1, _key, _payload, k2, p2);
-            }
-
-            kp.setChild(child);
-            dili_auxiliary::empty_fan2leaves.push_back(fan2child);
-            return true;
-        } else if (kp.key == _key) {
-            return false;
-        } else {
-            long k1, k2;
-            long p1, p2;
-            if (kp.key < _key) {
-                k1 = kp.key;
-                p1 = kp.payload;
-                k2 = _key;
-                p2 = _payload;
-            } else {
-                k1 = _key;
-                p1 = _payload;
-                k2 = kp.key;
-                p2 = kp.payload;
-            }
-            assert(num_nonempty > 1);
-            total_n_travs += 3;
-            ++num_nonempty;
-            if(num_nonempty >= LEAF_MAX_CAPACIY) {
-                set_int_flag();
-            }
-
-#ifndef ALLOW_FAN2_NODE
-            fan2Leaf *fan2child;
-            if (!(dili_auxiliary::empty_fan2leaves.empty())) {
-                fan2child = dili_auxiliary::empty_fan2leaves.back();
-                dili_auxiliary::empty_fan2leaves.pop_back();
-                fan2child->set(k1, p1, k2, p2);
-            } else {
-                fan2child = new fan2Leaf(k1, p1, k2, p2);
-            }
-
-//        fan2Leaf *fan2child = new fan2Leaf(k1, p1, k2, p2);
-            kp.setFan2Child(fan2child);
-#else
-            diliNode *fan2node;
-            if (!(dili_auxiliary::empty_fan2nodes.empty())) {
-                fan2node = dili_auxiliary::empty_fan2nodes.back();
-                dili_auxiliary::empty_fan2nodes.pop_back();
-                assert(fan2node->num_nonempty == 2);
-            } else {
-                fan2node = new diliNode(false);
-                fan2node->init(2);
-            }
-
-            fan2node->put_two_keys(k1, p1, k2, p2);
-            kp.setChild(fan2node);
-#endif
-            return true;
-        }
-    }
-
 
 
 
@@ -1428,6 +1247,8 @@ struct diliNode{
             } else {
                 return -1;
             }
+        } else {
+            return -1;
         }
     }
 #else
@@ -1490,7 +1311,6 @@ struct diliNode{
                 payloads[j++] = fan2child->p1;
                 keys[j] = fan2child->k2;
                 payloads[j++] = fan2child->p2;
-                dili_auxiliary::empty_fan2leaves.push_back(fan2child);
             }
 #endif
         }

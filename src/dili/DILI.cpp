@@ -48,7 +48,7 @@ namespace diliFunc {
         int last_idx = 0;
         int cursor = 0;
 
-        cout << "****height = " << height << ", n_parents = " << n_parents << ", n_keys = " << n_keys << endl;
+//        cout << "****height = " << height << ", n_parents = " << n_parents << ", n_keys = " << n_keys << endl;
 
         for (int i = 0; i < n_parents; ++i) {
             diliNode *parent = parents[i];
@@ -136,16 +136,17 @@ void DILI::load(const string &path) {
 void DILI::bulk_load(long *keys, long *payloads, int n_keys) { //}, const string &mirror_dir, const string &layout_conf_path, int interval_type) {
     const int interval_type = 1;
     l_matrix mirror;
-    cout << "-----build ideal mirror-----" << endl;
     build_ideal_mirror(keys, NULL, n_keys, mirror, mirror_dir, interval_type);
-    cout << "----mirror.layout:------" << endl;
-    for (size_t i = 0; i < mirror.size(); ++i) {
-        cout << mirror[i].size() << " " << endl;
-    }
-    cout << endl;
+
+//    cout << "----mirror.layout:------" << endl;
+//    for (size_t i = 0; i < mirror.size(); ++i) {
+//        cout << mirror[i].size() << " " << endl;
+//    }
+//    cout << endl;
+
+    cout << "Building " << name() << "......" << endl;
     build_from_mirror(mirror, keys, payloads, n_keys);
-    order_check();
-    cout << "******************" << endl;
+//    order_check();
 }
 
 void DILI::stats() {

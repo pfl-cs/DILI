@@ -31,6 +31,7 @@ public:
 //#else
 //        std::cout << "2.defined ALLOW_FAN2_NODE" << std::endl;
 //#endif
+        init_insert_aux_vars();
     }
     ~DILI() {
         clear();
@@ -41,15 +42,14 @@ public:
             delete root;
             root = NULL;
         }
+        free_insert_aux_vars();
     }
 
 
-    // deprecated
     void init_insert_aux_vars() {
         dili_auxiliary::init_insert_aux_vars();
     }
 
-    // deprecated
     void free_insert_aux_vars() {
         dili_auxiliary::free_insert_aux_vars();
     }
@@ -134,7 +134,7 @@ public:
     void build_from_mirror(l_matrix &mirror, long *all_keys, long *all_payloads, long N) {
         size_t H = mirror.size();
 
-        cout << "+++H = " << H << endl;
+//        cout << "+++H = " << H << endl;
         intVec n_nodes_each_level;
         intVec n_nodes_each_level_mirror;
         for (longVec &lv : mirror) {
@@ -192,7 +192,7 @@ public:
         int act_total_N_children = 0;
 
         for (int height = H - 1; height > 0; --height) {
-            cout << "--------height = " << height << "-----------" << endl;
+//            cout << "--------height = " << height << "-----------" << endl;
             n_keys = N;
 
             if (height > 1) {
@@ -250,53 +250,42 @@ public:
 //    cout << "----------------------------------------" << endl;
 //    delete[] tmp_keys;
 
-        cout << "****here is OK." << endl;
+//        cout << "****here is OK." << endl;
 
         long start_idx = 0;
         bool print = false;
         for (int i = 0; i < act_total_N_children; ++i) {
-//        if (i == 5) {
-//            print = true;
-//        }
             diliNode *leaf = children[i];
             int _num_nonempty = leaf->num_nonempty;
             leaf->bulk_loading(all_keys + start_idx, all_payloads + start_idx, print);
             start_idx += _num_nonempty;
-
-//        if (i >= 290000) {
-//            if (i % 10000 == 0) {
-//                cout << i << " finished. empty_nodes.size = " << dili_auxiliary::empty_nodes.size() << endl;
-//            }
-//        }
         }
-//        cout << "+++here is OK." << endl;
-
-        validness_check(all_keys, all_payloads, N);
-//        cout << "+++0. here is OK." << endl;
-
         if (start_idx != N) {
             cout << "error, start_idx = " << start_idx << ", N = " << N << endl;
         }
         assert(start_idx == N);
+
+//        validness_check(all_keys, all_payloads, N);
+
         root->trim();
-        cout << "+++1. here is OK." << endl;
+//        cout << "+++1. here is OK." << endl;
         root->cal_num_nonempty();
-        cout << "+++2. here is OK." << endl;
+//        cout << "+++2. here is OK." << endl;
 #ifndef ALLOW_FAN2_NODE
         root->simplify();
-        cout << "+++3. here is OK." << endl;
+//        cout << "+++3. here is OK." << endl;
 #endif
         root->cal_avg_n_travs();
-        cout << "+++4. here is OK." << endl;
+//        cout << "+++4. here is OK." << endl;
         root->init_after_bulk_load();
-        cout << "+++5. here is OK." << endl;
-        validness_check(all_keys, all_payloads, N);
+//        cout << "+++5. here is OK." << endl;
+//        validness_check(all_keys, all_payloads, N);
 
-        cout << "layout: [" << n_nodes_each_level[0];
-        for (size_t i = 1; i < n_nodes_each_level.size(); ++i) {
-            cout << ", " << n_nodes_each_level[i];
-        }
-        cout << "]" << endl;
+//        cout << "layout: [" << n_nodes_each_level[0];
+//        for (size_t i = 1; i < n_nodes_each_level.size(); ++i) {
+//            cout << ", " << n_nodes_each_level[i];
+//        }
+//        cout << "]" << endl;
     }
 
     void validness_check(long *keys, long *payloads, int n_keys) {

@@ -22,7 +22,7 @@ KEY_TYPE *keys_to_insert = NULL;
 PAYLOAD_TYPE *payloads_to_insert = NULL;
 KEY_TYPE *keys_to_delete = NULL;
 
-pair<KEY_TYPE, PAYLOAD_TYPE> *queries;
+pair<KEY_TYPE, PAYLOAD_TYPE> *queries = NULL;
 
 void data_alloc() {
     keys = new KEY_TYPE[DATA_SIZE + INSERT_SIZE + DELETE_SIZE];
@@ -30,7 +30,7 @@ void data_alloc() {
     queries = new pair<KEY_TYPE, PAYLOAD_TYPE>[QUERY_SIZE];
     keys_to_insert = keys + DATA_SIZE;
     payloads_to_insert = payloads + DATA_SIZE;
-    keys_to_delete = keys + DATA_SIZE + 1 + INSERT_SIZE;
+    keys_to_delete = keys + DATA_SIZE + INSERT_SIZE;
 }
 
 void data_free() {
@@ -62,7 +62,7 @@ void data_load(const string &data_dir) {
     assert(size == DATA_SIZE + INSERT_SIZE + DELETE_SIZE);
     auto payloads_path = filesystem::path(data_dir) / "payloads.dat";
     size = load_data_int(payloads_path.c_str(), payloads);
-    assert(size == DATA_SIZE + INSERT_SIZE + DELETE_SIZE);
+    assert(size == DATA_SIZE + INSERT_SIZE);
 
     auto queries_path = filesystem::path(data_dir) / "queries.dat";
     size = load_data_pair(queries_path.c_str(), queries);
@@ -105,7 +105,6 @@ void data_sampling() {
         keys_to_delete[i] = keys[idxes[QUERY_SIZE + i]];
     }
 
-
     std::uniform_int_distribution<KEY_TYPE> delete_second_part_dist(0, INSERT_SIZE - 1);
     idx_set.clear();
     while (idx_set.size() < DELETE_SIZE / 10) {
@@ -130,6 +129,7 @@ int main(int argc, char *argv[]) {
 
     data_alloc();
 
+    cout << "Sampling keys and payloads......." << endl;
     if (data_exists(data_dir)) {
         data_load(data_dir);
     } else {
@@ -137,47 +137,46 @@ int main(int argc, char *argv[]) {
         data_save(data_dir);
     }
 
-    string mirror_dir = "models/buTree";
+    string mirror_dir = "data/buTree";
     status = path_status(mirror_dir);
     assert(status != 2);
     if (status == 0) {
         create_dir(mirror_dir);
     }
 
-
     DILI dili;
     dili.set_mirror_dir(mirror_dir);
     dili.bulk_load(keys, payloads, DATA_SIZE);
-    cout << "0.here is OK." << endl;
 
+    cout << "Bulk loading test......";
     for (int i = 0; i < QUERY_SIZE; ++i) {
         PAYLOAD_TYPE pred = dili.search(queries[i].first);
         assert (pred == queries[i].second);
     }
-    cout << "1.here is OK." << endl;
+    cout << "finished." << endl;
 
+    cout << "Insertion test......";
     for (int i = 0; i < INSERT_SIZE; ++i) {
         bool succeed = dili.insert(keys_to_insert[i], payloads_to_insert[i]);
         assert(succeed);
     }
-    cout << "2.here is OK." << endl;
-
     for (int i = 0; i < QUERY_SIZE; ++i) {
         PAYLOAD_TYPE pred = dili.search(queries[i].first);
         assert (pred == queries[i].second);
     }
-    cout << "3.here is OK." << endl;
+    cout << "finished." << endl;
 
-    for (int i = 0; i < INSERT_SIZE; ++i) {
+    cout << "Deletion test......";
+    for (int i = 0; i < DELETE_SIZE; ++i) {
         bool succeed = dili.erase(keys_to_delete[i]);
         assert(succeed);
     }
-    cout << "4.here is OK." << endl;
     for (int i = 0; i < QUERY_SIZE; ++i) {
         PAYLOAD_TYPE pred = dili.search(queries[i].first);
         assert (pred == queries[i].second);
     }
-    cout << "5.here is OK." << endl;
+    cout << "finished." << endl;
+
 
     data_free();
     dili.clear();
