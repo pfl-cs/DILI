@@ -1,0 +1,49 @@
+ # Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+*.DS_Store
+*.sh
+
+# Executables
+*.exe
+*.out
+*.app
+*.txt
+*.ini
+.idea
+
+cmake-build-debug
+build
+src/test
+src/other
+src/old
+src/bak
+src/compare.cpp
+src/parse.cpp
+src/data_process
+src/competitors
+src/*.py
