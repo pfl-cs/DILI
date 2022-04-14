@@ -128,7 +128,6 @@ int main(int argc, char *argv[]) {
         create_dir(data_dir);
     }
 
-    //balaba
     data_alloc();
 
     if (data_exists(data_dir)) {
