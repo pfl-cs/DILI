@@ -6,6 +6,6 @@
 mkdir build
 cd build
 cmake ..
-make
+make #or make -j 64
 ./example
 ```
