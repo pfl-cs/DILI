@@ -3,8 +3,8 @@
 #include <iostream>
 using namespace std;
 
-long *interval::data = NULL;
-double *interval::probs = NULL;
+const long *interval::data = NULL;
+const double *interval::probs = NULL;
 
 double interval::init_lr(bool force_init) {
     if (force_init) {

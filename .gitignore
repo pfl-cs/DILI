@@ -45,4 +45,5 @@ src/compare.cpp
 src/parse.cpp
 src/data_process
 src/competitors
+src/diliWOOpt
 src/*.py

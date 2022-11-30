@@ -20,24 +20,24 @@ struct diliNode;
 struct fan2Leaf;
 
 namespace dili_auxiliary {
-    extern long *retrain_keys;
-    extern long *retrain_payloads;
+    extern keyType *retrain_keys;
+    extern recordPtr *retrain_ptrs;
     void init_insert_aux_vars();
     void free_insert_aux_vars();
 }
 
 
-inline void linearReg_w_simple_strategy(long *X, double &a, double &b, int n) {
+inline void linearReg_w_simple_strategy(const keyType *X, double &a, double &b, int n) {
     int left_n = n / 2;
     int right_n = n - left_n - 1;
-    long x_middle = X[left_n];
+    keyType x_middle = X[left_n];
     double left_slope = 1.0 * left_n / (x_middle - X[0]);
     double right_slope = 1.0 * right_n / (X[n-1] - x_middle);
     b = MAX_DOUBLE(left_slope, right_slope);
     a = -b * x_middle + left_n;
 }
 
-inline void linearReg_at_least_four(long *X, double &a, double &b, int n) {
+inline void linearReg_at_least_four(const keyType *X, double &a, double &b, int n) {
     double nu_b = 0;
     double de_b = 0;
     double mean_x = 0;
@@ -60,7 +60,7 @@ inline void linearReg_at_least_four(long *X, double &a, double &b, int n) {
     a = mean_y - b * mean_x;
 }
 
-inline void linearReg_w_expanding(long *X, double &a, double &b, int n, int expanded_n, bool use_simple_strategy) {
+inline void linearReg_w_expanding(const keyType *X, double &a, double &b, int n, int expanded_n, bool use_simple_strategy) {
     if (!use_simple_strategy) {
         linearReg_at_least_four(X, a, b, n);
     } else {
@@ -81,7 +81,7 @@ struct diliNode{
     int num_nonempty;
     double avg_n_travs_since_last_dist;
     long total_n_travs;
-    keyPayload *kp_data;
+    pairEntry *pe_data;
 
     long last_total_n_travs;
     int last_nn;
@@ -110,10 +110,10 @@ struct diliNode{
         fanout = std::max<int>(num_nonempty, minFan);
         fanout += (fanout * n_adjust) / 10;
 //        fanout = std::max<int>(num_nonempty, minFan) * (1 + 0.1 * get_n_adjust());
-        kp_data = new keyPayload[fanout];
+        pe_data = new pairEntry[fanout];
     }
 
-    diliNode(bool _is_internal): a(0), b(0), meta_info(_is_internal), fanout(0), kp_data(NULL), n_adjust(30), num_nonempty(0),
+    diliNode(bool _is_internal): a(0), b(0), meta_info(_is_internal), fanout(0), pe_data(NULL), n_adjust(30), num_nonempty(0),
                                  total_n_travs(0), last_total_n_travs(0), last_nn(0), avg_n_travs_since_last_dist(1e10)  {}
 
     inline void init(const int &_num_nonempty) {
@@ -121,7 +121,7 @@ struct diliNode{
         fanout = std::max<int>(_num_nonempty, minFan);
         fanout += (fanout * n_adjust) / 10;
 //        fanout = std::max<int>(_num_nonempty, minFan) * (1 + 0.1 * get_n_adjust());
-        kp_data = new keyPayload[fanout];
+        pe_data = new pairEntry[fanout];
     }
     inline void inc_num_nonempty() { ++num_nonempty; }
     inline int get_num_nonempty() { return num_nonempty; }
@@ -130,12 +130,12 @@ struct diliNode{
         if (num_nonempty <= 0) {
             assert(num_nonempty == 0);
             for (int i = 0; i < fanout; ++i) {
-                keyPayload &kp = kp_data[i];
-                if (kp.key >= 0) {
+                pairEntry &pe = pe_data[i];
+                if (pe.key >= 0) {
                     ++num_nonempty;
-                } else if (kp.key == -1) {
-                    num_nonempty += kp.child->cal_num_nonempty();
-                } else if (kp.key == -2) {
+                } else if (pe.key == -1) {
+                    num_nonempty += pe.child->cal_num_nonempty();
+                } else if (pe.key == -2) {
                     num_nonempty += 2;
                 }
             }
@@ -147,9 +147,9 @@ struct diliNode{
         last_total_n_travs = total_n_travs;
         last_nn = num_nonempty;
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key == -1) {
-                kp.child->init_after_bulk_load();
+            pairEntry &pe = pe_data[i];
+            if (pe.key == -1) {
+                pe.child->init_after_bulk_load();
             }
         }
     }
@@ -160,27 +160,27 @@ struct diliNode{
             assert(num_nonempty < LEAF_MAX_CAPACIY);
         }
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key == -1) {
-                kp.child->check_num_nonempty();
+            pairEntry &pe = pe_data[i];
+            if (pe.key == -1) {
+                pe.child->check_num_nonempty();
             }
         }
     }
 
 
-    inline long leaf_find(const long &key) const {
+    inline recordPtr leaf_find(const keyType &key) const {
         int pred = LR_PRED(a, b, key, fanout);
 //        cout << "pred = " << pred << endl;
-        keyPayload &kp = kp_data[pred];
-//        cout << "kp.key = " << kp.key << endl;
-        if (kp.key == key) {
-            return kp.payload;
+        pairEntry &pe = pe_data[pred];
+//        cout << "pe.key = " << pe.key << endl;
+        if (pe.key == key) {
+            return pe.ptr;
         }
-        if (kp.key == -1) {
-            return kp.child->leaf_find(key);
+        if (pe.key == -1) {
+            return pe.child->leaf_find(key);
         }
-        if (kp.key == -2) {
-            fan2Leaf *child = kp.fan2child;
+        if (pe.key == -2) {
+            fan2Leaf *child = pe.fan2child;
             if (child->k1 == key) {
                 return child->p1;
             }
@@ -191,18 +191,18 @@ struct diliNode{
         }
         return -1;
     }
-    inline long leaf_find_w_print(const long &key) const {
+    inline recordPtr leaf_find_w_print(const keyType &key) const {
         int pred = LR_PRED(a, b, key, fanout);
-        keyPayload &kp = kp_data[pred];
+        pairEntry &pe = pe_data[pred];
         cout << "key = " << key << ", num_nontempty = " << num_nonempty << ", fanout = " << fanout << ", a = " << a << ", b = " << b << ", pred = " << pred << endl;
-        if (kp.key == key) {
-            return kp.payload;
+        if (pe.key == key) {
+            return pe.ptr;
         }
-        if (kp.key == -1) {
-            return kp.child->leaf_find(key);
+        if (pe.key == -1) {
+            return pe.child->leaf_find(key);
         }
-        if (kp.key == -2) {
-            fan2Leaf *child = kp.fan2child;
+        if (pe.key == -2) {
+            fan2Leaf *child = pe.fan2child;
             if (child->k1 == key) {
                 return child->p1;
             }
@@ -214,35 +214,35 @@ struct diliNode{
         return -1;
     }
 
-    inline int range_query_from(const long &k1, long *results) const {
+    inline int range_query_from(const keyType &k1, recordPtr *results) const {
         int j = 0;
         int pred = LR_PRED(a, b, k1, fanout);
-        keyPayload &first_kp = kp_data[pred];
-        if (first_kp.key == -1) {
-            j = first_kp.child->range_query_from(k1, results);
-        } else if (first_kp.key == -2) {
-            fan2Leaf *fan2child = first_kp.fan2child;
-            long _k1 = fan2child->k1;
-            long _k2 = fan2child->k2;
+        pairEntry &first_pe = pe_data[pred];
+        if (first_pe.key == -1) {
+            j = first_pe.child->range_query_from(k1, results);
+        } else if (first_pe.key == -2) {
+            fan2Leaf *fan2child = first_pe.fan2child;
+            keyType _k1 = fan2child->k1;
+            keyType _k2 = fan2child->k2;
             if (_k1 >= k1) {
                 results[j++] = fan2child->p1;
                 results[j++] = fan2child->p2;
             } else if (_k2 >= k1) {
                 results[j++] = fan2child->p2;
             }
-        } else if (first_kp.key >= k1) {
-            results[j++] = first_kp.payload;
+        } else if (first_pe.key >= k1) {
+            results[j++] = first_pe.ptr;
         }
 
         for(int i = pred + 1; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                results[j++] = kp.payload;
-            } else if (kp.key == -1) {
-                kp.child->collect_all_payloads(results+j);
-                j += kp.child->num_nonempty;
-            } else if (kp.key == -2) {
-                fan2Leaf *fan2child = kp.fan2child;
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                results[j++] = pe.ptr;
+            } else if (pe.key == -1) {
+                pe.child->collect_all_ptrs(results+j);
+                j += pe.child->num_nonempty;
+            } else if (pe.key == -2) {
+                fan2Leaf *fan2child = pe.fan2child;
                 results[j++] = fan2child->p1;
                 results[j++] = fan2child->p2;
             }
@@ -251,72 +251,72 @@ struct diliNode{
         return j;
     }
 
-    inline int range_query_to(const long &k2, long *results) const {
+    inline int range_query_to(const keyType &k2, recordPtr *results) const {
         int j = 0;
         int pred = LR_PRED(a, b, k2, fanout);
         for(int i = 0; i < pred; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                results[j++] = kp.payload;
-            } else if (kp.key == -1) {
-                kp.child->collect_all_payloads(results+j);
-                j += kp.child->num_nonempty;
-            } else if (kp.key == -2) {
-                fan2Leaf *fan2child = kp.fan2child;
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                results[j++] = pe.ptr;
+            } else if (pe.key == -1) {
+                pe.child->collect_all_ptrs(results+j);
+                j += pe.child->num_nonempty;
+            } else if (pe.key == -2) {
+                fan2Leaf *fan2child = pe.fan2child;
                 results[j++] = fan2child->p1;
                 results[j++] = fan2child->p2;
             }
         }
 
-        keyPayload &kp = kp_data[pred];
-        if (kp.key == -1) {
-            j += kp.child->range_query_to(k2, results+j);
-        } else if (kp.key == -2) {
-            fan2Leaf *fan2child = kp.fan2child;
-            long _k1 = fan2child->k1;
-            long _k2 = fan2child->k2;
+        pairEntry &pe = pe_data[pred];
+        if (pe.key == -1) {
+            j += pe.child->range_query_to(k2, results+j);
+        } else if (pe.key == -2) {
+            fan2Leaf *fan2child = pe.fan2child;
+            keyType _k1 = fan2child->k1;
+            keyType _k2 = fan2child->k2;
             if (_k2 < k2) {
                 results[j++] = fan2child->p1;
                 results[j++] = fan2child->p2;
             } else if (_k1 < k2) {
                 results[j++] = fan2child->p1;
             }
-        } else if (kp.key < k2) {
-            results[j++] = kp.payload;
+        } else if (pe.key < k2) {
+            results[j++] = pe.ptr;
         }
         return j;
     }
 
-    inline void collect_all_payloads(long *results) const{
+    inline void collect_all_ptrs(recordPtr *results) const{
         int j = 0;
         for(int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                results[j++] = kp.payload;
-            } else if (kp.key == -1) {
-                kp.child->collect_all_payloads(results+j);
-                j += kp.child->num_nonempty;
-            } else if (kp.key == -2) {
-                fan2Leaf *fan2child = kp.fan2child;
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                results[j++] = pe.ptr;
+            } else if (pe.key == -1) {
+                pe.child->collect_all_ptrs(results+j);
+                j += pe.child->num_nonempty;
+            } else if (pe.key == -2) {
+                fan2Leaf *fan2child = pe.fan2child;
                 results[j++] = fan2child->p1;
                 results[j++] = fan2child->p2;
             }
         }
     }
 
-    inline int range_query(const long &k1, const long &k2, long *results) const {
+    inline int range_query(const keyType &k1, const keyType &k2, recordPtr *results) const {
         int pred1 = LR_PRED(a, b, k1, fanout);
         int pred2 = LR_PRED(a, b, k2, fanout);
 
         if (pred1 == pred2) {
-            keyPayload &kp = kp_data[pred1];
-            if (kp.key == -1) {
-                return kp.child->range_query(k1, k2, results);
-            } else if (kp.key == -2) {
+            pairEntry &pe = pe_data[pred1];
+            if (pe.key == -1) {
+                return pe.child->range_query(k1, k2, results);
+            } else if (pe.key == -2) {
                 int n = 0;
-                fan2Leaf *leaf = kp.fan2child;
-                long _k1 = leaf->k1;
-                long _k2 = leaf->k2;
+                fan2Leaf *leaf = pe.fan2child;
+                keyType _k1 = leaf->k1;
+                keyType _k2 = leaf->k2;
                 if (_k1 >= k1 && _k1 < k2) {
                     results[n++] = leaf->p1;
                 }
@@ -324,20 +324,20 @@ struct diliNode{
                     results[n++] = leaf->p2;
                 }
                 return n;
-            } else if (kp.key >= k1 && kp.key < k2) {
-                results[0] = kp.payload;
+            } else if (pe.key >= k1 && pe.key < k2) {
+                results[0] = pe.ptr;
                 return 1;
             }
         } else { // pred1 < pred2
 
-            keyPayload &first_kp = kp_data[pred1];
+            pairEntry &first_pe = pe_data[pred1];
             int n = 0;
-            if (first_kp.key == -1) {
-                n = first_kp.child->range_query_from(k1, results);
-            } else if (first_kp.key == -2) {
-                fan2Leaf *leaf = first_kp.fan2child;
-                long _k1 = leaf->k1;
-                long _k2 = leaf->k2;
+            if (first_pe.key == -1) {
+                n = first_pe.child->range_query_from(k1, results);
+            } else if (first_pe.key == -2) {
+                fan2Leaf *leaf = first_pe.fan2child;
+                keyType _k1 = leaf->k1;
+                keyType _k2 = leaf->k2;
                 if (_k1 >= k1) {
                     results[0] = leaf->p1;
                     results[1] = leaf->p2;
@@ -346,32 +346,32 @@ struct diliNode{
                     results[1] = leaf->p2;
                     n = 1;
                 }
-            } else if (first_kp.key >= k1) {
-                results[0] = first_kp.payload;
+            } else if (first_pe.key >= k1) {
+                results[0] = first_pe.ptr;
                 n = 1;
             }
 
             for (int i = pred1 + 1; i < pred2; ++i) {
-                keyPayload &kp = kp_data[i];
-                if (kp.key == -1) {
-                    kp.child->collect_all_payloads(results+n);
-                    n += kp.child->num_nonempty;
-                } else if (kp.key == -2) {
-                    fan2Leaf *leaf = kp.fan2child;
+                pairEntry &pe = pe_data[i];
+                if (pe.key == -1) {
+                    pe.child->collect_all_ptrs(results+n);
+                    n += pe.child->num_nonempty;
+                } else if (pe.key == -2) {
+                    fan2Leaf *leaf = pe.fan2child;
                     results[n++] = leaf->p1;
                     results[n++] = leaf->p2;
-                } else if (kp.key >= k1 && kp.key < k2) {
-                    results[n++] = kp.payload;
+                } else if (pe.key >= k1 && pe.key < k2) {
+                    results[n++] = pe.ptr;
                 }
             }
 
-            keyPayload &final_kp = kp_data[pred2];
-            if (final_kp.key == -1) {
-                n += final_kp.child->range_query_to(k2, results+n);
-            } else if (final_kp.key == -2) {
-                fan2Leaf *leaf = final_kp.fan2child;
-                long _k1 = leaf->k1;
-                long _k2 = leaf->k2;
+            pairEntry &final_pe = pe_data[pred2];
+            if (final_pe.key == -1) {
+                n += final_pe.child->range_query_to(k2, results+n);
+            } else if (final_pe.key == -2) {
+                fan2Leaf *leaf = final_pe.fan2child;
+                keyType _k1 = leaf->k1;
+                keyType _k2 = leaf->k2;
                 if (_k2 < k2) {
                     results[n++] = leaf->p1;
                     results[n++] = leaf->p2;
@@ -379,30 +379,30 @@ struct diliNode{
                     results[n++] = leaf->p1;
                 }
 
-            } else if (final_kp.key < k2) {
-                results[n++] = final_kp.payload;
+            } else if (final_pe.key < k2) {
+                results[n++] = final_pe.ptr;
             }
             return n;
         }
     }
 
 
-    inline diliNode* find_child(const long &key) {
+    inline diliNode* find_child(const keyType &key) {
         int i = LR_PRED(a, b, key, fanout);
-        return kp_data[i].child;
+        return pe_data[i].child;
     }
 
-    inline diliNode* find_child_w_print(const long &key) {
+    inline diliNode* find_child_w_print(const keyType &key) {
         int i = LR_PRED(a, b, key, fanout);
         cout << "key = " << key << ", pred = " << i << endl;
-        return kp_data[i].child;
+        return pe_data[i].child;
     }
 
-    inline int get_child_id(const long &key) { return LR_PRED(a, b, key, fanout); }
+    inline int get_child_id(const keyType &key) { return LR_PRED(a, b, key, fanout); }
     inline bool if_retrain() { return (!is_internal()) && (total_n_travs * last_nn >= ((last_total_n_travs * num_nonempty) << 1) ); }
 //    inline bool if_retrain() { return 1.0 * total_n_travs / num_nonempty >= 2 * avg_n_travs_since_last_dist; }
 
-    inline void put_two_keys(long k0, long p0, long k1, long p1) {
+    inline void put_two_keys(const keyType &k0, const recordPtr &p0, const keyType &k1, const recordPtr &p1) {
         double offset = fanout / 3.0;
         b = offset / (k1 - k0);
         a = offset - b * k0;
@@ -412,44 +412,44 @@ struct diliNode{
 
         int pos0 = LR_PRED(a, b, k0, fanout);
         int pos1 = LR_PRED(a, b, k1, fanout);
-        kp_data[pos0].assign(k0, p0);
-        kp_data[pos1].assign(k1, p1);
+        pe_data[pos0].assign(k0, p0);
+        pe_data[pos1].assign(k1, p1);
         assert(pos0 < pos1);
         total_n_travs = 2;
 //        avg_n_travs_since_last_dist = 1;
     }
 
-    inline void put_three_keys(const long &k0, const long &p0, const long &k1, const long &p1, const long &k2, const long &p2) {
+    inline void put_three_keys(const keyType &k0, const recordPtr &p0, const keyType &k1, const recordPtr &p1, const keyType &k2, const recordPtr &p2) {
         double offset = fanout / 3.0;
-        long s = MIN_LONG(k1 - k0, k2 - k1);
+        keyType s = MIN_KEY(k1 - k0, k2 - k1);
         b = offset / s;
         a = 0.5 + offset - b * k1;
         int pos0 = LR_PRED(a, b, k0, fanout);
         int pos1 = LR_PRED(a, b, k1, fanout);
         int pos2 = LR_PRED(a, b, k2, fanout);
-        kp_data[pos0].assign(k0, p0);
-        kp_data[pos1].assign(k1, p1);
-        kp_data[pos2].assign(k2, p2);
+        pe_data[pos0].assign(k0, p0);
+        pe_data[pos1].assign(k1, p1);
+        pe_data[pos2].assign(k2, p2);
         assert(pos0 < pos1 && pos1 < pos2);
         total_n_travs = 3;
         avg_n_travs_since_last_dist = 1;
     }
 
-    inline void put_three_keys(long *_keys, long *_payloads) {
-        long k0 = _keys[0];
-        long k1 = _keys[1];
-        long k2 = _keys[2];
+    inline void put_three_keys(const keyType *_keys, const recordPtr *_ptrs) {
+        keyType k0 = _keys[0];
+        keyType k1 = _keys[1];
+        keyType k2 = _keys[2];
         double offset = fanout / 3.0;
-        long s = MIN_LONG(k1 - k0, k2 - k1);
+        keyType s = MIN_KEY(k1 - k0, k2 - k1);
         b = offset / s;
         a = 0.5 + offset - b * k1;
         int pos0 = LR_PRED(a, b, k0, fanout);
         int pos1 = LR_PRED(a, b, k1, fanout);
         int pos2 = LR_PRED(a, b, k2, fanout);
 
-        kp_data[pos0].assign(k0, _payloads[0]);
-        kp_data[pos1].assign(k1, _payloads[1]);
-        kp_data[pos2].assign(k2, _payloads[2]);
+        pe_data[pos0].assign(k0, _ptrs[0]);
+        pe_data[pos1].assign(k1, _ptrs[1]);
+        pe_data[pos2].assign(k2, _ptrs[2]);
         assert(pos0 < pos1 && pos1 < pos2);
         total_n_travs = 3;
         avg_n_travs_since_last_dist = 1;
@@ -459,10 +459,10 @@ struct diliNode{
 
     inline bool order_check() const{
 
-        long last_key = 0;
+        keyType last_key = 0;
         int i = 0;
         for (; i < fanout; ++i) {
-            long key = kp_data[i].key;
+            keyType key = pe_data[i].key;
             if (key >= 0) {
                 last_key = key;
                 break;
@@ -470,7 +470,7 @@ struct diliNode{
         }
         ++i;
         for (; i < fanout; ++i) {
-            long key = kp_data[i].key;
+            keyType key = pe_data[i].key;
             if (key >= 0) {
                 if (last_key >= key) {
                     cout << "error at " << i << ", last_key = " << last_key << ", keys[i] = " << key << endl;
@@ -506,11 +506,11 @@ struct diliNode{
             int cn = 0;
             long c_total_fan = 0;
             long c_n_empty_slots = 0;
-            keyPayload &kp = kp_data[i];
-            if (kp.key == -1) {
-                kp.child->num_nonempty_stats(cn0, cn1, cn2, cn, c_total_fan, c_n_empty_slots);
+            pairEntry &pe = pe_data[i];
+            if (pe.key == -1) {
+                pe.child->num_nonempty_stats(cn0, cn1, cn2, cn, c_total_fan, c_n_empty_slots);
             }
-            if (kp.key < -2) {
+            if (pe.key < -2) {
                 ++n_empty_slos;
             }
             n0 += cn0;
@@ -524,17 +524,17 @@ struct diliNode{
 
 
     ~diliNode(){
-        if (kp_data) {
+        if (pe_data) {
             if (fanout > 0) {
                 for (int i = 0; i < fanout; ++i) {
-                    if (kp_data[i].key == -1) {
-                        diliNode *child = kp_data[i].child;
+                    if (pe_data[i].key == -1) {
+                        diliNode *child = pe_data[i].child;
                         delete child;
                     }
                 }
             }
-            delete [] kp_data;
-            kp_data = NULL;
+            delete [] pe_data;
+            pe_data = NULL;
         }
     }
 
@@ -557,15 +557,15 @@ struct diliNode{
         fwrite(&n_adjust, sizeof(int), 1, fp);
 
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            long key = kp.key;
-            fwrite(&(key), sizeof(long),1, fp);
+            pairEntry &pe = pe_data[i];
+            keyType key = pe.key;
+            fwrite(&(key), sizeof(keyType),1, fp);
             if (key >= 0) {
-                fwrite(&(kp.payload), sizeof(long),1, fp);
+                fwrite(&(pe.ptr), sizeof(recordPtr),1, fp);
             } else if (key == -1){
-                kp.child->save(fp);
+                pe.child->save(fp);
             } else if (key == -2) {
-                kp.fan2child->save(fp);
+                pe.fan2child->save(fp);
             }
         }
 
@@ -592,30 +592,30 @@ struct diliNode{
         fread(&last_nn, sizeof(int), 1, fp);
         fread(&n_adjust, sizeof(int), 1, fp);
 
-        kp_data = new keyPayload[fanout];
-        long key = 0;
-        long payload = 0;
+        pe_data = new pairEntry[fanout];
+        keyType key = 0;
+        recordPtr ptr = 0;
         for (int i = 0; i < fanout; ++i) {
-            fread(&key, sizeof(long), 1, fp);
+            fread(&key, sizeof(keyType), 1, fp);
             if (key >= 0) {
-                fread(&payload, sizeof(long), 1, fp);
-                kp_data[i].assign(key, payload);
+                fread(&ptr, sizeof(recordPtr), 1, fp);
+                pe_data[i].assign(key, ptr);
             } else if (key == -1){
                 diliNode *child = new diliNode(false);
                 child->load(fp);
-                kp_data[i].setChild(child);
+                pe_data[i].setChild(child);
             } else if (key == -2) {
                 fan2Leaf *fan2child = new fan2Leaf;
                 fan2child->load(fp);
-                kp_data[i].setFan2Child(fan2child);
+                pe_data[i].setFan2Child(fan2child);
             } else {
-                kp_data[i].setNull();
+                pe_data[i].setNull();
             }
         }
     }
 
 
-    void cal_lr_params(long *keys, int n_keys) { //}, vector<int>& child_fans) {
+    void cal_lr_params(keyType *keys, int n_keys) { //}, vector<int>& child_fans) {
         assert(n_keys >= 0);
         if (n_keys >= 2) {
             // note y_start = 1 here
@@ -645,26 +645,26 @@ struct diliNode{
             return;
         }
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
+            pairEntry &pe = pe_data[i];
             if (!is_internal() && num_nonempty == 0) {
-                cout << "i = " << i << ", fan = " << fanout << ", kp.key = " << kp.key << endl;
+                cout << "i = " << i << ", fan = " << fanout << ", pe.key = " << pe.key << endl;
             }
-            if (kp.key == -1) {
-                diliNode *child = kp.child;
+            if (pe.key == -1) {
+                diliNode *child = pe.child;
                 child->trim();
             }
         }
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key == -1) {
-                diliNode *child = kp.child;
+            pairEntry &pe = pe_data[i];
+            if (pe.key == -1) {
+                diliNode *child = pe.child;
                 assert(long(child) != -3l);
                 assert(child->fanout >= 1);
                 if (!(child->is_internal()) && child->num_nonempty == 0) {
                     delete child;
-                    kp.setNull();
+                    pe.setNull();
                 } else if ((child->fanout == 1) || (!(child->is_internal()) && child->num_nonempty == 1)) {
-                    kp_data[i] = child->kp_data[0];
+                    pe_data[i] = child->pe_data[0];
                     child->fanout = 0;
                     delete child;
                 }
@@ -675,20 +675,20 @@ struct diliNode{
 
     void simplify() {
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key == -1) {
-                diliNode *child = kp.child;
+            pairEntry &pe = pe_data[i];
+            if (pe.key == -1) {
+                diliNode *child = pe.child;
                 if (child->num_nonempty == 2) {
-                    keyPayload &ckp = child->kp_data[0];
-                    long k1 = ckp.key;
-                    long p1 = ckp.payload;
-                    ckp = child->kp_data[1];
-                    long k2 = ckp.key;
-                    long p2 = ckp.payload;
+                    pairEntry &cpe = child->pe_data[0];
+                    keyType k1 = cpe.key;
+                    recordPtr p1 = cpe.ptr;
+                    cpe = child->pe_data[1];
+                    keyType k2 = cpe.key;
+                    recordPtr p2 = cpe.ptr;
                     delete child;
 
                     fan2Leaf *fan2child = new fan2Leaf(k1, p1, k2, p2);
-                    kp.setFan2Child(fan2child);
+                    pe.setFan2Child(fan2child);
                 } else {
                     child->simplify();
                 }
@@ -696,7 +696,7 @@ struct diliNode{
         }
     }
 
-    void bulk_loading(long *keys, long *payloads, bool print) {
+    void bulk_loading(const keyType *keys, const recordPtr *ptrs, bool print) {
         if (num_nonempty == 0) {
             fanout = 2;
             total_n_travs = 0;
@@ -705,33 +705,33 @@ struct diliNode{
             init();
             assert(fanout > 0);
             if (num_nonempty == 1) {
-                kp_data = new keyPayload[fanout];
+                pe_data = new pairEntry[fanout];
                 a = b = 0;
-                kp_data[0].assign(keys[0], payloads[0]);
+                pe_data[0].assign(keys[0], ptrs[0]);
                 total_n_travs = 1;
                 return;
             } else if (num_nonempty == 2) {
 #ifndef ALLOW_FAN2_NODE
                 b = 1.0 / (keys[1] - keys[0]);
                 a = 0.5 - b * keys[0];
-                kp_data[0].assign(keys[0], payloads[0]);
-                kp_data[1].assign(keys[1], payloads[1]);
+                pe_data[0].assign(keys[0], ptrs[0]);
+                pe_data[1].assign(keys[1], ptrs[1]);
                 total_n_travs = 2;
 #else
-                put_two_keys(keys[0], payloads[0], keys[1], payloads[1]);
+                put_two_keys(keys[0], ptrs[0], keys[1], ptrs[1]);
 #endif
                 return;
             } else if (num_nonempty == 3) {
-                put_three_keys(keys, payloads);
+                put_three_keys(keys, ptrs);
                 return;
             }
         }
 
-        distribute_data(keys, payloads, print);
+        distribute_data(keys, ptrs, print);
     }
 
 
-    void distribute_data(long *keys, long *payloads, bool print=false) {
+    void distribute_data(const keyType *keys, const recordPtr *ptrs, bool print=false) {
         if (print || fanout <= 0) {
             cout << "fanout = " << fanout << ", num_nonempty = " << num_nonempty << ", minFan = " << minFan
                  << ", expanding_ratio = " << get_expanding_ratio() << ", max_expanding_ratio = " << max_expanding_ratio
@@ -742,11 +742,11 @@ struct diliNode{
         total_n_travs = 0;
         linearReg_w_expanding(keys, a, b, num_nonempty, fanout, false);
         int last_k_id = 0;
-        long last_key = keys[0];
+        keyType last_key = keys[0];
         int pos = -1;
         int last_pos = LR_PRED(a, b, last_key, fanout);
 
-        long final_key = keys[num_nonempty - 1];
+        keyType final_key = keys[num_nonempty - 1];
 //    int final_pos = LR_PRED(a, b, final_key, fanout);
         if (b < 0 || last_pos == LR_PRED(a, b, final_key, fanout)) {
             linearReg_w_expanding(keys, a, b, num_nonempty, fanout, true);
@@ -770,7 +770,7 @@ struct diliNode{
         assert(b >= 0);
 
         for (int k_id = 1; k_id < num_nonempty; ++k_id) {
-            long key = keys[k_id];
+            keyType key = keys[k_id];
             assert (key != last_key);
             pos = LR_PRED(a, b, key, fanout);
 //            if (print) {
@@ -787,7 +787,7 @@ struct diliNode{
 
             if (pos != last_pos) {
                 if (k_id == last_k_id + 1) {
-                    kp_data[last_pos].assign(last_key, payloads[last_k_id]);
+                    pe_data[last_pos].assign(last_key, ptrs[last_k_id]);
                     ++total_n_travs;
                 } else { // need to create a new node
                     int n_keys_this_child = k_id - last_k_id;
@@ -803,36 +803,36 @@ struct diliNode{
 //                        }
                         diliNode *child = new diliNode(false);
                         child->init(3);
-                        child->put_three_keys(keys + last_k_id, payloads + last_k_id);
-                        kp_data[last_pos].setChild(child);
+                        child->put_three_keys(keys + last_k_id, ptrs + last_k_id);
+                        pe_data[last_pos].setChild(child);
                         total_n_travs += 6;
                     }
 
 #ifndef ALLOW_FAN2_NODE
                     else if (n_keys_this_child == 2) {
-                        fan2Leaf *fan2child = new fan2Leaf(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1], payloads[last_k_id + 1]);
+                        fan2Leaf *fan2child = new fan2Leaf(keys[last_k_id], ptrs[last_k_id], keys[last_k_id + 1], ptrs[last_k_id + 1]);
 //                        fan2child->k1 = keys[last_k_id];
-//                        fan2child->p1 = payloads[last_k_id];
+//                        fan2child->p1 = ptrs[last_k_id];
 //                        fan2child->k2 = keys[last_k_id + 1];
-//                        fan2child->p2 = payloads[last_k_id + 1];
-                        kp_data[last_pos].setFan2Child(fan2child);
+//                        fan2child->p2 = ptrs[last_k_id + 1];
+                        pe_data[last_pos].setFan2Child(fan2child);
                         total_n_travs += 4;
                     }
 #else
                         else if (n_keys_this_child == 2) {
                     diliNode *fan2node = new diliNode(false);
                     fan2node->init(2);
-                    fan2node->put_two_keys(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1],
-                                           payloads[last_k_id + 1]);
-                    kp_data[last_pos].setChild(fan2node);
+                    fan2node->put_two_keys(keys[last_k_id], ptrs[last_k_id], keys[last_k_id + 1],
+                                           ptrs[last_k_id + 1]);
+                    pe_data[last_pos].setChild(fan2node);
                     total_n_travs += 4;
                 }
 #endif
                     else {
                         diliNode *child = new diliNode(false);
                         child->init(n_keys_this_child);
-                        child->distribute_data(keys + last_k_id, payloads + last_k_id);
-                        kp_data[last_pos].setChild(child);
+                        child->distribute_data(keys + last_k_id, ptrs + last_k_id);
+                        pe_data[last_pos].setChild(child);
                         total_n_travs += n_keys_this_child + child->total_n_travs;
                     }
                 }
@@ -849,13 +849,13 @@ struct diliNode{
         assert(pos >= last_pos);
         if (last_k_id == num_nonempty - 1) {
             ++total_n_travs;
-            kp_data[pos].assign(keys[num_nonempty - 1], payloads[num_nonempty - 1]);
+            pe_data[pos].assign(keys[num_nonempty - 1], ptrs[num_nonempty - 1]);
         } else {
 //        diliNode *child = new diliNode(false);
 //        child->set_leaf_flag();
 //        child->set_num_nonempty(n_keys_this_child);
-//        child->bulk_loading(keys + last_k_id, payloads + last_k_id);
-//        kp_data[pos].setChild(child);
+//        child->bulk_loading(keys + last_k_id, ptrs + last_k_id);
+//        pe_data[pos].setChild(child);
 //        total_n_travs += n_keys_this_child + child->total_n_travs;
 
             int n_keys_this_child = num_nonempty - last_k_id;
@@ -872,36 +872,36 @@ struct diliNode{
 
                 diliNode *child = new diliNode(false);
                 child->init(3);
-                child->put_three_keys(keys + last_k_id, payloads + last_k_id);
-                kp_data[last_pos].setChild(child);
+                child->put_three_keys(keys + last_k_id, ptrs + last_k_id);
+                pe_data[last_pos].setChild(child);
                 total_n_travs += 6;
             }
 
 #ifndef ALLOW_FAN2_NODE
             else if (n_keys_this_child == 2) {
-                fan2Leaf *fan2child = new fan2Leaf(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1], payloads[last_k_id + 1]);
+                fan2Leaf *fan2child = new fan2Leaf(keys[last_k_id], ptrs[last_k_id], keys[last_k_id + 1], ptrs[last_k_id + 1]);
 //                fan2child->k1 = keys[last_k_id];
-//                fan2child->p1 = payloads[last_k_id];
+//                fan2child->p1 = ptrs[last_k_id];
 //                fan2child->k2 = keys[last_k_id + 1];
-//                fan2child->p2 = payloads[last_k_id + 1];
-                kp_data[last_pos].setFan2Child(fan2child);
+//                fan2child->p2 = ptrs[last_k_id + 1];
+                pe_data[last_pos].setFan2Child(fan2child);
                 total_n_travs += 4;
             }
 #else
             else if (n_keys_this_child == 2) {
                 diliNode *fan2node = new diliNode(false);
                 fan2node->init(2);
-                fan2node->put_two_keys(keys[last_k_id], payloads[last_k_id], keys[last_k_id + 1],
-                                       payloads[last_k_id + 1]);
-                kp_data[last_pos].setChild(fan2node);
+                fan2node->put_two_keys(keys[last_k_id], ptrs[last_k_id], keys[last_k_id + 1],
+                                       ptrs[last_k_id + 1]);
+                pe_data[last_pos].setChild(fan2node);
                 total_n_travs += 4;
             }
 #endif
             else {
                 diliNode *child = new diliNode(false);
                 child->init(n_keys_this_child);
-                child->distribute_data(keys + last_k_id, payloads + last_k_id);
-                kp_data[last_pos].setChild(child);
+                child->distribute_data(keys + last_k_id, ptrs + last_k_id);
+                pe_data[last_pos].setChild(child);
                 total_n_travs += n_keys_this_child + child->total_n_travs;
             }
         }
@@ -917,40 +917,40 @@ struct diliNode{
             avg_n_travs_since_last_dist = 1.0 * total_n_travs / num_nonempty;
         }
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key == -1) {
-                kp.child->cal_avg_n_travs();
+            pairEntry &pe = pe_data[i];
+            if (pe.key == -1) {
+                pe.child->cal_avg_n_travs();
             }
         }
     }
-    bool collect_and_check(long x0) {
+    bool collect_and_check(keyType x0) {
         int j = 0;
-        long last_key = x0;
+        keyType last_key = x0;
         for(int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                if (kp.key <= last_key) {
-                    cout << "error!!!!! case 1, x0 = " << x0 << ", last_key = " << last_key << ", key = " << kp.key << ", num_nonempty = " << num_nonempty << endl;
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                if (pe.key <= last_key) {
+                    cout << "error!!!!! case 1, x0 = " << x0 << ", last_key = " << last_key << ", key = " << pe.key << ", num_nonempty = " << num_nonempty << endl;
                     return false;
                 }
-                last_key = kp.key;
+                last_key = pe.key;
                 ++j;
-            } else if (kp.key == -1) {
-                diliNode *child = kp.child;
+            } else if (pe.key == -1) {
+                diliNode *child = pe.child;
                 child->collect_and_check(last_key);
                 j += child->num_nonempty;
-            } else if (kp.key == -2) {
+            } else if (pe.key == -2) {
                 j += 2;
-                fan2Leaf *fan2child = kp.fan2child;
-                long k1 = fan2child->k1;
-                long k2 = fan2child->k2;
+                fan2Leaf *fan2child = pe.fan2child;
+                keyType k1 = fan2child->k1;
+                keyType k2 = fan2child->k2;
                 if (k1 >= k2 || last_key >= k1) {
                     cout << "error!!!!! case 2, x0 = " << x0 << ", last_key = " << last_key << ", k1 = " << k1 << ", k2 = " << k2 << ", num_nonempty = " << num_nonempty <<  endl;
 
                     for(int t = 0; t < fanout; ++t) {
-                        keyPayload &kp = kp_data[t];
-                        if (kp.key >= 0) {
-                            cout << kp.key << " ";
+                        pairEntry &pe = pe_data[t];
+                        if (pe.key >= 0) {
+                            cout << pe.key << " ";
                         }
                     }
                     cout << endl;
@@ -966,24 +966,24 @@ struct diliNode{
 
 
 #ifndef ALLOW_FAN2_NODE
-    inline bool insert(const long &_key, const long &_payload) {
+    inline bool insert(const keyType &_key, const recordPtr &_ptr) {
         int pred = LR_PRED(a, b, _key, fanout);
-        keyPayload &kp = kp_data[pred];
+        pairEntry &pe = pe_data[pred];
 //    if (print) {
-//        cout << "_key = " << _key << ", kp.key = " << kp.key << ", fanout = " << fanout << ", pred = " << pred << ", num_nonempty = " << num_nonempty << endl;
+//        cout << "_key = " << _key << ", pe.key = " << pe.key << ", fanout = " << fanout << ", pred = " << pred << ", num_nonempty = " << num_nonempty << endl;
 //    }
-        if (kp.key < -2) {
-            kp.assign(_key, _payload);
+        if (pe.key < -2) {
+            pe.assign(_key, _ptr);
             ++num_nonempty;
             ++total_n_travs;
             if (num_nonempty >= LEAF_MAX_CAPACIY) {
                 set_int_flag();
             }
             return true;
-        } else if (kp.key == -1) {
-            diliNode *child = kp.child;
+        } else if (pe.key == -1) {
+            diliNode *child = pe.child;
             long child_last_total_n_travs = child->total_n_travs;
-            bool if_inserted = child->insert(_key, _payload);
+            bool if_inserted = child->insert(_key, _ptr);
             if (if_inserted) {
                 ++num_nonempty;
                 ++total_n_travs;
@@ -993,22 +993,22 @@ struct diliNode{
 //                }
                 if (num_nonempty < LEAF_MAX_CAPACIY) {
                     if (if_retrain()) {
-                        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+                        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs);
                         inc_n_adjust();
                         init();
-                        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+                        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs);
                     }
                 }
             }
             return if_inserted;
-        } else if (kp.key == -2) {
+        } else if (pe.key == -2) {
 //        not define ALLOW_FAN2_NODE
             total_n_travs += 2;
-            fan2Leaf *fan2child = kp.fan2child;
-            long k1 = fan2child->k1;
-            long p1 = fan2child->p1;
-            long k2 = fan2child->k2;
-            long p2 = fan2child->p2;
+            fan2Leaf *fan2child = pe.fan2child;
+            keyType k1 = fan2child->k1;
+            recordPtr p1 = fan2child->p1;
+            keyType k2 = fan2child->k2;
+            recordPtr p2 = fan2child->p2;
             if (_key == k1 || _key == k2) {
                 return false;
             }
@@ -1035,30 +1035,30 @@ struct diliNode{
             child->init(3);
 
             if (_key > k2) {
-                child->put_three_keys(k1, p1, k2, p2, _key, _payload);
+                child->put_three_keys(k1, p1, k2, p2, _key, _ptr);
             } else if (_key < k1) {
-                child->put_three_keys(_key, _payload, k1, p1, k2, p2);
+                child->put_three_keys(_key, _ptr, k1, p1, k2, p2);
             } else {
-                child->put_three_keys(k1, p1, _key, _payload, k2, p2);
+                child->put_three_keys(k1, p1, _key, _ptr, k2, p2);
             }
 
-            kp.setChild(child);
+            pe.setChild(child);
             return true;
-        } else if (kp.key == _key) {
+        } else if (pe.key == _key) {
             return false;
         } else {
-            long k1, k2;
-            long p1, p2;
-            if (kp.key < _key) {
-                k1 = kp.key;
-                p1 = kp.payload;
+            keyType k1, k2;
+            recordPtr p1, p2;
+            if (pe.key < _key) {
+                k1 = pe.key;
+                p1 = pe.ptr;
                 k2 = _key;
-                p2 = _payload;
+                p2 = _ptr;
             } else {
                 k1 = _key;
-                p1 = _payload;
-                k2 = kp.key;
-                p2 = kp.payload;
+                p1 = _ptr;
+                k2 = pe.key;
+                p2 = pe.ptr;
             }
             assert(num_nonempty > 1);
             total_n_travs += 3;
@@ -1072,25 +1072,25 @@ struct diliNode{
 
 //    if (if_retrain()) {
 //        int tmp = 1;
-//        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads, k1, p1, k2, p2, pred);
+//        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs, k1, p1, k2, p2, pred);
 //        inc_n_adjust();
 //        init();
-//        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+//        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs);
 //    } else {
 
             fan2Leaf *fan2child = new fan2Leaf(k1, p1, k2, p2);
-            kp.setFan2Child(fan2child);
+            pe.setFan2Child(fan2child);
 
             return true;
         }
     }
 #else
-    inline bool insert(const long &_key, const long &_payload) {
+    inline bool insert(const keyType &_key, const recordPtr &_ptr) {
 
         int pred = LR_PRED(a, b, _key, fanout);
-        keyPayload &kp = kp_data[pred];
-        if (kp.key < -2) {
-            kp.assign(_key, _payload);
+        pairEntry &pe = pe_data[pred];
+        if (pe.key < -2) {
+            pe.assign(_key, _ptr);
             ++num_nonempty;
             ++total_n_travs;
 
@@ -1099,10 +1099,10 @@ struct diliNode{
             }
 
             return true;
-        } else if (kp.key == -1) {
-            diliNode *child = kp.child;
+        } else if (pe.key == -1) {
+            diliNode *child = pe.child;
             long child_last_total_n_travs = child->total_n_travs;
-            bool if_inserted = child->insert(_key, _payload);
+            bool if_inserted = child->insert(_key, _ptr);
             if (if_inserted) {
                 ++num_nonempty;
                 ++total_n_travs;
@@ -1113,9 +1113,9 @@ struct diliNode{
 
                 if(!is_internal() && (num_nonempty > (last_nn << 1))) {
                     if (if_retrain()) {
-//                    collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+//                    collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs);
                         inc_n_adjust();
-//                    distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+//                    distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs);
                     }
                 }
 
@@ -1124,18 +1124,18 @@ struct diliNode{
             }
             return if_inserted;
         }  else {
-            long k1, k2;
-            long p1, p2;
-            if (kp.key < _key) {
-                k1 = kp.key;
-                p1 = kp.payload;
+            keyType k1, k2;
+            recordPtr p1, p2;
+            if (pe.key < _key) {
+                k1 = pe.key;
+                p1 = pe.ptr;
                 k2 = _key;
-                p2 = _payload;
+                p2 = _ptr;
             } else {
                 k1 = _key;
-                p1 = _payload;
-                k2 = kp.key;
-                p2 = kp.payload;
+                p1 = _ptr;
+                k2 = pe.key;
+                p2 = pe.ptr;
             }
 //            assert(num_nonempty > 1);
             total_n_travs += 3;
@@ -1148,16 +1148,16 @@ struct diliNode{
 
 //    if (if_retrain()) {
 //        int tmp = 1;
-//        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads, k1, p1, k2, p2, pred);
+//        collect_and_clear(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs, k1, p1, k2, p2, pred);
 //        inc_n_adjust();
-//        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_payloads);
+//        distribute_data(dili_auxiliary::retrain_keys, dili_auxiliary::retrain_ptrs);
 //    } else {
 
 
             diliNode *fan2node = new diliNode(false);
             fan2node->init(2);
             fan2node->put_two_keys(k1, p1, k2, p2);
-            kp.setChild(fan2node);
+            pe.setChild(fan2node);
             return true;
         }
     }
@@ -1167,23 +1167,23 @@ struct diliNode{
 
 #ifndef ALLOW_FAN2_NODE
     fan2Leaf* convert_to_fan2leaf() { // num_nonemtpy == 2
-        long k1, p1;
-        long k2, p2;
+        keyType k1, k2;
+        recordPtr p1, p2;
         bool flag = true;
         for (int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key == -2) {
-                fan2Leaf *leaf = kp.fan2child;
-                kp.setNull();
+            pairEntry &pe = pe_data[i];
+            if (pe.key == -2) {
+                fan2Leaf *leaf = pe.fan2child;
+                pe.setNull();
                 return leaf;
-            } else if (kp.key >= 0) {
+            } else if (pe.key >= 0) {
                 if (flag) {
-                    k1 = kp.key;
-                    p1 = kp.payload;
+                    k1 = pe.key;
+                    p1 = pe.ptr;
                     flag = false;
                 } else {
-                    k2 = kp.key;
-                    p2 = kp.payload;
+                    k2 = pe.key;
+                    p2 = pe.ptr;
                     return new fan2Leaf(k1, p1, k2, p2);
                 }
             }
@@ -1191,25 +1191,25 @@ struct diliNode{
         return NULL;
     }
 
-    inline int erase(const long &_key) {
+    inline int erase(const keyType &_key) {
         int pred = LR_PRED(a, b, _key, fanout);
-        keyPayload &kp = kp_data[pred];
-        if (kp.key == _key) {
-            kp.setNull();
+        pairEntry &pe = pe_data[pred];
+        if (pe.key == _key) {
+            pe.setNull();
             --num_nonempty;
             --total_n_travs;
             return num_nonempty;
         }
-        else if (kp.key == -2) {
-            fan2Leaf *fan2child = kp.fan2child;
+        else if (pe.key == -2) {
+            fan2Leaf *fan2child = pe.fan2child;
             if (fan2child->k1 == _key) {
-                kp.assign(fan2child->k2, fan2child->p2);
+                pe.assign(fan2child->k2, fan2child->p2);
                 --num_nonempty;
                 total_n_travs -= 3;
 //                delete fan2child;
                 return num_nonempty;
             } else if (fan2child->k2 == _key) {
-                kp.assign(fan2child->k1, fan2child->p1);
+                pe.assign(fan2child->k1, fan2child->p1);
                 --num_nonempty;
                 total_n_travs -= 3;
 //                delete fan2child;
@@ -1217,8 +1217,8 @@ struct diliNode{
             } else {
                 return -1;
             }
-        } else if (kp.key == -1) {
-            diliNode *child = kp.child;
+        } else if (pe.key == -1) {
+            diliNode *child = pe.child;
             long child_n_travs = child->total_n_travs;
             int flag = child->erase(_key);
 //            if (flag > 2) {
@@ -1229,7 +1229,7 @@ struct diliNode{
 //                fan2Leaf *fan2child = child->convert_to_fan2leaf();
 //                delete child;
 //                total_n_travs -= (child_n_travs - 1); // total_n_travs -= (child_n_travs + 1 - 2);
-//                kp.setFan2Child(fan2child);
+//                pe.setFan2Child(fan2child);
 //                --num_nonempty;
 //                return num_nonempty;
 //            } else {
@@ -1242,7 +1242,71 @@ struct diliNode{
             } else if (flag == 0){
                 total_n_travs -= (child_n_travs + 1);
                 --num_nonempty;
-                kp.setNull();
+                pe.setNull();
+                return num_nonempty;
+            } else {
+                return -1;
+            }
+        } else {
+            return -1;
+        }
+    }
+
+    inline int erase_and_get_ptr(const keyType &_key, recordPtr &ptr) {
+        int pred = LR_PRED(a, b, _key, fanout);
+        pairEntry &pe = pe_data[pred];
+        if (pe.key == _key) {
+            ptr = pe.ptr;
+            pe.setNull();
+            --num_nonempty;
+            --total_n_travs;
+            return num_nonempty;
+        }
+        else if (pe.key == -2) {
+            fan2Leaf *fan2child = pe.fan2child;
+            if (fan2child->k1 == _key) {
+                ptr = fan2child->p1;
+                pe.assign(fan2child->k2, fan2child->p2);
+                --num_nonempty;
+                total_n_travs -= 3;
+//                delete fan2child;
+                return num_nonempty;
+            } else if (fan2child->k2 == _key) {
+                ptr = fan2child->p2;
+                pe.assign(fan2child->k1, fan2child->p1);
+                --num_nonempty;
+                total_n_travs -= 3;
+//                delete fan2child;
+                return num_nonempty;
+            } else {
+                return -1;
+            }
+        } else if (pe.key == -1) {
+            diliNode *child = pe.child;
+            long child_n_travs = child->total_n_travs;
+            int flag = child->erase_and_get_ptr(_key, ptr);
+//            if (flag > 2) {
+//                total_n_travs -= (child_n_travs - child->total_n_travs + 1);
+//                --num_nonempty;
+//                return num_nonempty;
+//            } else if (flag == 2) { // adjust
+//                fan2Leaf *fan2child = child->convert_to_fan2leaf();
+//                delete child;
+//                total_n_travs -= (child_n_travs - 1); // total_n_travs -= (child_n_travs + 1 - 2);
+//                pe.setFan2Child(fan2child);
+//                --num_nonempty;
+//                return num_nonempty;
+//            } else {
+//                return -1;
+//            }
+            if (flag > 0) {
+                total_n_travs -= (child_n_travs - child->total_n_travs + 1);
+                --num_nonempty;
+                return num_nonempty;
+            } else if (flag == 0){
+                total_n_travs -= (child_n_travs + 1);
+                --num_nonempty;
+                pe.setNull();
                 return num_nonempty;
             } else {
                 return -1;
@@ -1252,31 +1316,31 @@ struct diliNode{
         }
     }
 #else
-    inline int erase(const long &_key) {
+    inline int erase(const keyType &_key) {
         int pred = LR_PRED(a, b, _key, fanout);
-        keyPayload &kp = kp_data[pred];
-        if (kp.key == _key) {
-            kp.setNull();
+        pairEntry &pe = pe_data[pred];
+        if (pe.key == _key) {
+            pe.setNull();
             --num_nonempty;
             --total_n_travs;
             return num_nonempty;
         }
-        else if (kp.key == -1) {
-            diliNode *child = kp.child;
+        else if (pe.key == -1) {
+            diliNode *child = pe.child;
             long child_n_travs = child->total_n_travs;
-            int flag = kp.child->erase(_key);
+            int flag = pe.child->erase(_key);
             if (flag > 1) {
                 total_n_travs -= (child_n_travs - child->total_n_travs + 1);
                 --num_nonempty;
                 return num_nonempty;
             } else if (flag == 1) {
                 total_n_travs -= (child_n_travs + 1);
-                diliNode *fan1_child = kp.child;
-                keyPayload *child_kps = fan1_child->kp_data;
+                diliNode *fan1_child = pe.child;
+                pairEntry *child_pes = fan1_child->pe_data;
                 int child_fan = fan1_child->fanout;
                 for (int i = 0; i < child_fan; ++i) {
-                    if (child_kps[i].key >= 0) {
-                        kp = child_kps[i];
+                    if (child_pes[i].key >= 0) {
+                        pe = child_pes[i];
                         break;
                     }
                 }
@@ -1291,102 +1355,102 @@ struct diliNode{
     }
 #endif
 
-    void collect_and_clear(long *keys, long *payloads) {
+    void collect_and_clear(keyType *keys, recordPtr *ptrs) {
         int j = 0;
         for(int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                keys[j] = kp.key;
-                payloads[j++] = kp.payload;
-            } else if (kp.key == -1) {
-                diliNode *child = kp.child;
-                child->collect_and_clear(keys+j, payloads+j);
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                keys[j] = pe.key;
+                ptrs[j++] = pe.ptr;
+            } else if (pe.key == -1) {
+                diliNode *child = pe.child;
+                child->collect_and_clear(keys+j, ptrs+j);
                 j += child->num_nonempty;
                 delete child;
             }
 #ifndef ALLOW_FAN2_NODE
-            else if (kp.key == -2) {
-                fan2Leaf *fan2child = kp.fan2child;
+            else if (pe.key == -2) {
+                fan2Leaf *fan2child = pe.fan2child;
                 keys[j] = fan2child->k1;
-                payloads[j++] = fan2child->p1;
+                ptrs[j++] = fan2child->p1;
                 keys[j] = fan2child->k2;
-                payloads[j++] = fan2child->p2;
+                ptrs[j++] = fan2child->p2;
             }
 #endif
         }
-        delete[] kp_data;
-        kp_data = NULL;
+        delete[] pe_data;
+        pe_data = NULL;
         assert(j == num_nonempty);
     }
 
-    void collect_and_clear(long *keys, long *payloads, long k1, long p1, long k2, long p2, int pos) {
+    void collect_and_clear(keyType *keys, recordPtr *ptrs, keyType k1, recordPtr p1, keyType k2, recordPtr p2, int pos) {
         int j = 0;
         for(int i = 0; i < pos; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                keys[j] = kp.key;
-                payloads[j++] = kp.payload;
-            } else if (kp.key == -1) {
-                diliNode *child = kp.child;
-                child->collect_and_clear(keys+j, payloads+j);
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                keys[j] = pe.key;
+                ptrs[j++] = pe.ptr;
+            } else if (pe.key == -1) {
+                diliNode *child = pe.child;
+                child->collect_and_clear(keys+j, ptrs+j);
                 j += child->num_nonempty;
                 delete child;
             }
 #ifndef ALLOW_FAN2_NODE
-            else if (kp.key == -2) {
-                fan2Leaf *fan2child = kp.fan2child;
+            else if (pe.key == -2) {
+                fan2Leaf *fan2child = pe.fan2child;
                 keys[j] = fan2child->k1;
-                payloads[j++] = fan2child->p1;
+                ptrs[j++] = fan2child->p1;
                 keys[j] = fan2child->k2;
-                payloads[j++] = fan2child->p2;
+                ptrs[j++] = fan2child->p2;
                 delete fan2child;
             }
 #endif
         }
         keys[j] = k1;
-        payloads[j++] = p1;
+        ptrs[j++] = p1;
         keys[j] = k2;
-        payloads[j++] = p2;
+        ptrs[j++] = p2;
         for(int i = pos + 1; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                keys[j] = kp.key;
-                payloads[j++] = kp.payload;
-            } else if (kp.key == -1) {
-                diliNode *child = kp.child;
-                child->collect_and_clear(keys+j, payloads+j);
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                keys[j] = pe.key;
+                ptrs[j++] = pe.ptr;
+            } else if (pe.key == -1) {
+                diliNode *child = pe.child;
+                child->collect_and_clear(keys+j, ptrs+j);
                 j += child->num_nonempty;
                 delete child;
             }
 #ifndef ALLOW_FAN2_NODE
-            else if (kp.key == -2) {
-                fan2Leaf *fan2child = kp.fan2child;
+            else if (pe.key == -2) {
+                fan2Leaf *fan2child = pe.fan2child;
                 keys[j] = fan2child->k1;
-                payloads[j++] = fan2child->p1;
+                ptrs[j++] = fan2child->p1;
                 keys[j] = fan2child->k2;
-                payloads[j++] = fan2child->p2;
+                ptrs[j++] = fan2child->p2;
                 delete fan2child;
             }
 #endif
         }
-        delete[] kp_data;
-        kp_data = NULL;
+        delete[] pe_data;
+        pe_data = NULL;
         assert(j == num_nonempty);
     }
 
-    void collect_all_keys(long *keys) {
+    void collect_all_keys(keyType *keys) {
         assert(b >= 0);
         int j = 0;
         for(int i = 0; i < fanout; ++i) {
-            keyPayload &kp = kp_data[i];
-            if (kp.key >= 0) {
-                keys[j++] = kp.key;
-            } else if (kp.key == -1) {
-                diliNode *child = kp.child;
+            pairEntry &pe = pe_data[i];
+            if (pe.key >= 0) {
+                keys[j++] = pe.key;
+            } else if (pe.key == -1) {
+                diliNode *child = pe.child;
                 child->collect_all_keys(keys+j);
                 j += child->num_nonempty;
-            } else if (kp.key == -2) {
-                fan2Leaf *fan2child = kp.fan2child;
+            } else if (pe.key == -2) {
+                fan2Leaf *fan2child = pe.fan2child;
                 keys[j++] = fan2child->k1;
                 keys[j++] = fan2child->k2;
             }
@@ -1394,16 +1458,16 @@ struct diliNode{
         if (j != num_nonempty) {
             cout << "j = " << j << ", num_nonempty = " << num_nonempty << ", is_internal = " << is_internal() << endl;
             for(int i = 0; i < num_nonempty; ++i) {
-                keyPayload &kp = kp_data[i];
-                if (kp.key >= 0) {
-                    cout << "i = " << i << ", kp.key = " << kp.key << endl;
-                } else if (kp.key == -1) {
-                    diliNode *child = kp.child;
+                pairEntry &pe = pe_data[i];
+                if (pe.key >= 0) {
+                    cout << "i = " << i << ", pe.key = " << pe.key << endl;
+                } else if (pe.key == -1) {
+                    diliNode *child = pe.child;
                     child->collect_all_keys(keys+j);
                     cout << "i = " << i << ", child.num_nonempty = " << child->num_nonempty << endl;
                     j += child->num_nonempty;
-                } else if (kp.key == -2) {
-                    fan2Leaf *fan2child = kp.fan2child;
+                } else if (pe.key == -2) {
+                    fan2Leaf *fan2child = pe.fan2child;
                     cout << "i = " << i << ", fan2child.num_nonempty = 2" << endl;
                     keys[j++] = fan2child->k1;
                     keys[j++] = fan2child->k2;

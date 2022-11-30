@@ -1,14 +1,14 @@
 #include "linearRegressor.h"
+#include "../global/global.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #ifndef DILI_INTERVAL_H
 #define DILI_INTERVAL_H
 
-
 struct interval{
-    static long *data;
-    static double *probs;
+    static const keyType *data;
+    static const double *probs;
 
     bool valid;
     int fanout;

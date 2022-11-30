@@ -7,13 +7,13 @@
 
 
 struct fan2Leaf {
-    long k1;
-    long p1;
-    long k2;
-    long p2;
+    keyType k1;
+    recordPtr p1;
+    keyType k2;
+    recordPtr p2;
     fan2Leaf() {}
-    fan2Leaf(const long &_k1, const long &_p1, const long &_k2, const long &_p2): k1(_k1), p1(_p1), k2(_k2), p2(_p2) {}
-    inline void set(const long &_k1, const long &_p1, const long &_k2, const long &_p2) {
+    fan2Leaf(const keyType &_k1, const recordPtr &_p1, const keyType &_k2, const recordPtr &_p2): k1(_k1), p1(_p1), k2(_k2), p2(_p2) {}
+    inline void set(const keyType &_k1, const recordPtr &_p1, const keyType &_k2, const recordPtr &_p2) {
         k1 = _k1;
         p1 = _p1;
         k2 = _k2;
@@ -21,17 +21,17 @@ struct fan2Leaf {
     }
 
     void save(FILE *fp) {
-        fwrite(&k1, sizeof(long),1, fp);
-        fwrite(&p1, sizeof(long),1, fp);
-        fwrite(&k2, sizeof(long),1, fp);
-        fwrite(&p2, sizeof(long),1, fp);
+        fwrite(&k1, sizeof(keyType),1, fp);
+        fwrite(&p1, sizeof(recordPtr),1, fp);
+        fwrite(&k2, sizeof(keyType),1, fp);
+        fwrite(&p2, sizeof(recordPtr),1, fp);
     }
 
     void load(FILE *fp) {
-        fread(&k1, sizeof(long),1, fp);
-        fread(&p1, sizeof(long),1, fp);
-        fread(&k2, sizeof(long),1, fp);
-        fread(&p2, sizeof(long),1, fp);
+        fread(&k1, sizeof(keyType),1, fp);
+        fread(&p1, sizeof(recordPtr),1, fp);
+        fread(&k2, sizeof(keyType),1, fp);
+        fread(&p2, sizeof(recordPtr),1, fp);
     }
 };
 

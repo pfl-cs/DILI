@@ -1,7 +1,7 @@
 #include "DILI.h"
 #include "../global/linearReg.h"
 #include "../global/global.h"
-#include "../global/utils.h"
+#include "../utils/data_utils.h"
 
 #include <iostream>
 #include <vector>
@@ -31,7 +31,7 @@ using namespace std;
 namespace diliFunc {
     pair<diliNode **, double *>
     create_children(const int &height, diliNode **parents, int n_parents, double *parents_range_froms,
-                    long *split_keys_for_children, long *payloads, int n_keys,
+                    keyType *split_keys_for_children, recordPtr *ptrs, int n_keys,
                     int &act_total_N_children) {
         act_total_N_children = 0;
         for (int i = 0; i < n_parents; ++i) {
@@ -53,7 +53,7 @@ namespace diliFunc {
         for (int i = 0; i < n_parents; ++i) {
             diliNode *parent = parents[i];
             int fanout = parent->fanout;
-            parent->kp_data = new keyPayload[fanout];
+            parent->pe_data = new pairEntry[fanout];
             double range_from = parents_range_froms[i];
             double parent_range_to = parents_range_froms[i + 1];
 //        parent->children = new diliNode*[fanout];
@@ -68,7 +68,7 @@ namespace diliFunc {
                 if (child_id == fanout - 1) {
                     range_to = parent_range_to;
                 }
-                int idx = array_lower_bound(split_keys_for_children, range_to, 0, n_keys);
+                int idx = data_utils::array_lower_bound(split_keys_for_children, range_to, 0, n_keys);
                 int n_keys_this_child = idx - last_idx;
 
                 if (last_idx > idx) {
@@ -90,7 +90,7 @@ namespace diliFunc {
                     _children[cursor++] = child;
                 }
 //            parent->children[child_id] = child;
-                parent->kp_data[child_id].setChild(child);
+                parent->pe_data[child_id].setChild(child);
 
                 last_idx = idx;
                 range_from = range_to;
@@ -133,10 +133,10 @@ void DILI::load(const string &path) {
     fclose(fp);
 }
 
-void DILI::bulk_load(long *keys, long *payloads, int n_keys) { //}, const string &mirror_dir, const string &layout_conf_path, int interval_type) {
+void DILI::bulk_load(const keyArray &keys, const recordPtrArray &ptrs, long n_keys) { //}, const string &mirror_dir, const string &layout_conf_path, int interval_type) {
     const int interval_type = 1;
     l_matrix mirror;
-    build_ideal_mirror(keys, NULL, n_keys, mirror, mirror_dir, interval_type);
+    build_ideal_mirror(keys, nullptr, n_keys, mirror, mirror_dir, interval_type);
 
 //    cout << "----mirror.layout:------" << endl;
 //    for (size_t i = 0; i < mirror.size(); ++i) {
@@ -145,8 +145,21 @@ void DILI::bulk_load(long *keys, long *payloads, int n_keys) { //}, const string
 //    cout << endl;
 
     cout << "Building " << name() << "......" << endl;
-    build_from_mirror(mirror, keys, payloads, n_keys);
+    build_from_mirror(mirror, keys, ptrs, n_keys);
 //    order_check();
+}
+
+void DILI::bulk_load(const std::vector< pair<keyType, recordPtr> > &bulk_load_data) {
+    size_t N = bulk_load_data.size();
+    keyArray keys = std::make_unique<keyType []>(N + 1);
+    recordPtrArray ptrs = std::make_unique<recordPtr []>(N + 1);
+    for (size_t i = 0; i < N; ++i) {
+        keys[i] = bulk_load_data[i].first;
+        ptrs[i] = bulk_load_data[i].second;
+    }
+    keys[N] = keys[N-1] + 1;
+    ptrs[N] = -1;
+    bulk_load(keys, ptrs, static_cast<long>(N));
 }
 
 void DILI::stats() {

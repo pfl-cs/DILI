@@ -1,7 +1,8 @@
 #include "intervalInstance.h"
 #include "interval_utils.h"
 #include "../global/global.h"
-#include "../global/utils.h"
+#include "../utils/data_utils.h"
+#include "../utils/file_utils.h"
 #include <set>
 #include <queue>
 #include <algorithm>
@@ -13,7 +14,7 @@
 #include <vector>
 using namespace std;
 
-void check_order(long *data, long n) {
+void check_order(keyType *data, long n) {
     for (long i = 1; i < n; ++i) {
         if (data[i - 1] >= data[i]) {
             cout << "i = " << i << ", data[i-1] = " << data[i-1] << ", data[i] = " << data[i] << endl;
@@ -192,14 +193,14 @@ double cal_loss3(long N, long n_intervals, double total_linear_loss, bool print=
 }
 
 //longVec &complete_borders,
-double partition(long *X, double *probs, long N, int h, longVec &best_borders, long min_border_size, longVec &complete_borders, doubleVec &complete_losses, int interval_type){
-    interval::data = X;
-    interval::probs = probs;
+double partition(const keyArray &X, const doubleArray &probs, long N, int h, longVec &best_borders, long min_border_size, longVec &complete_borders, doubleVec &complete_losses, int interval_type){
+    interval::data = X.get();
+    interval::probs = probs.get();
 
     double single_prob = 1.0; // 1.0 / N;
 
     set<long> border_set;
-    long last_ubd = X[0] - 1;
+    keyType last_ubd = X[0] - 1;
 
     interval *lSib = intervalInstance::newInstance(interval_type);
     lSib->fanout = 2;
@@ -221,10 +222,10 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
     interval_set cs;
     long data_idx = 0;
     for (long i = 2; i < N; i += 2) {
-        long x = X[i];
+        keyType x = X[i];
 //        long x0 = x - 1;
 //        long x2 = x + 1;
-        long x2 = X[i + 1] + 1;
+        keyType x2 = X[i + 1] + 1;
         int fan = 2;
         if (i + 3 >= N) {
             fan = N - i;
@@ -496,14 +497,14 @@ double partition(long *X, double *probs, long N, int h, longVec &best_borders, l
     return best_loss;
 }
 
-void get_complete_partition_borders(long *X, double *probs, long N, int h, long min_fanout, long max_fanout, longVec &complete_borders, doubleVec &complete_avg_rmses, int interval_type){
-    interval::data = X;
-    interval::probs = probs;
+void get_complete_partition_borders(const keyArray &X, const doubleArray &probs, long N, int h, long min_fanout, long max_fanout, longVec &complete_borders, doubleVec &complete_avg_rmses, int interval_type){
+    interval::data = X.get();
+    interval::probs = probs.get();
 
     double single_prob = 1.0; // 1.0 / N;
 
     set<long> border_set;
-    long last_ubd = X[0] - 1;
+    keyType last_ubd = X[0] - 1;
 
     interval *lSib = intervalInstance::newInstance(interval_type);
     lSib->fanout = 2;
@@ -525,10 +526,10 @@ void get_complete_partition_borders(long *X, double *probs, long N, int h, long 
     interval_set cs;
     long data_idx = 0;
     for (long i = 2; i < N; i += 2) {
-        long x = X[i];
+        keyType x = X[i];
 //        long x0 = x - 1;
 //        long x2 = x + 1;
-        long x2 = X[i + 1] + 1;
+        keyType x2 = X[i + 1] + 1;
         int fan = 2;
         if (i + 3 >= N) {
             fan = N - i;
@@ -739,7 +740,7 @@ void get_complete_partition_borders(long *X, double *probs, long N, int h, long 
     }
 }
 
-void build_mirror(long *X, double *probs, long N, l_matrix &mirror, const string &mirror_dir, int interval_type) {
+void build_mirror(const keyArray &X, const doubleArray &probs, long N, l_matrix &mirror, const string &mirror_dir, int interval_type) {
     mirror.clear();
     restore_mirror(mirror_dir, mirror);
 
@@ -754,7 +755,7 @@ void build_mirror(long *X, double *probs, long N, l_matrix &mirror, const string
         doubleVec h0_losses;
         partition(X, probs, N, 0, mirror[0], N / 200, h0_borders, h0_losses, interval_type);
         string h0_path = mirror_dir + "/h0.dat";
-        save_data_int_vec(h0_path.c_str(), mirror[0]);
+        data_utils::save_vec_data(h0_path.c_str(), mirror[0]);
     }
     curr_n_nodes = mirror[mirror.size() - 1].size();
     cout << "leaf nodes have been created" << endl;
@@ -766,8 +767,9 @@ void build_mirror(long *X, double *probs, long N, l_matrix &mirror, const string
         // build root_cand
 
         longVec &highest_bounds = mirror[mirror.size()-1];
-        long *topX = new long[curr_n_nodes+1];
-        std::copy(highest_bounds.begin(), highest_bounds.end(), topX);
+//        keyType *topX = new keyType [curr_n_nodes+1];
+        keyArray topX = make_unique<keyType []>(curr_n_nodes+1);
+        std::copy(highest_bounds.begin(), highest_bounds.end(), topX.get());
         topX[curr_n_nodes] = X[N-1] + 1;
 
         cout << "stage-" <<  (height+1) << " from bottom. curr_n_nodes = " << curr_n_nodes << endl;
@@ -775,15 +777,14 @@ void build_mirror(long *X, double *probs, long N, l_matrix &mirror, const string
             mirror.push_back(root_info);
             assert(mirror.size() == height + 1);
             string hi_path = mirror_dir + "/h" + to_string(height) + ".dat";
-            save_data_int_vec(hi_path.c_str(), root_info);
+            data_utils::save_vec_data(hi_path.c_str(), root_info);
 
-            delete[] topX;
             break;
         }
 
         linearRegressor root_lr;
-        root_lr.init(topX, 0, 0, curr_n_nodes);
-        double root_loss = root_lr.cal_loss(topX, curr_n_nodes);
+        root_lr.init(topX.get(), 0, 0, curr_n_nodes);
+        double root_loss = root_lr.cal_loss(topX.get(), curr_n_nodes);
         root_loss = sqrt(root_loss / curr_n_nodes);
         root_loss = (root_loss > 1) ? log(root_loss) / log(2.0) : 0;
 //        root_loss = 1 + ((root_loss > 1) ? (2 * log(root_loss) / log(2.0)) : 0);
@@ -793,7 +794,7 @@ void build_mirror(long *X, double *probs, long N, l_matrix &mirror, const string
         mirror.push_back(longVec());
         longVec hi_borders;
         doubleVec hi_losses;
-        double int_loss = partition(topX, NULL, curr_n_nodes, height, mirror[mirror.size()-1], -1, hi_borders, hi_losses, interval_type);
+        double int_loss = partition(topX, nullptr, curr_n_nodes, height, mirror[mirror.size()-1], -1, hi_borders, hi_losses, interval_type);
 
         cout << "int_loss = " << int_loss << endl;
         // check if one more stage needs to be added.
@@ -804,23 +805,20 @@ void build_mirror(long *X, double *probs, long N, l_matrix &mirror, const string
             assert(mirror.size() == height);
 
             string hi_path = mirror_dir + "/h" + to_string(height-1) + ".dat";
-            save_data_int_vec(hi_path.c_str(), root_info);
-
-            delete[] topX;
+            data_utils::save_vec_data(hi_path.c_str(), root_info);
             break;
         } else {
             longVec &lv = mirror[mirror.size()-1];
             curr_n_nodes = lv.size();
             assert(mirror.size() == height);
             string hi_path = mirror_dir + "/h" + to_string(height-1) + ".dat";
-            save_data_int_vec(hi_path.c_str(), mirror[mirror.size()-1]);
+            data_utils::save_vec_data(hi_path.c_str(), mirror[mirror.size()-1]);
         }
-        delete[] topX;
     }
 }
 
 
-void build_mirror_from_given_layout(long *X, double *probs, long N, l_matrix &mirror, const string &mirror_dir, const longVec &layout, int interval_type) {
+void build_mirror_from_given_layout(const keyArray &X, const doubleArray &probs, long N, l_matrix &mirror, const string &mirror_dir, const longVec &layout, int interval_type) {
     mirror.clear();
     restore_mirror(mirror_dir, mirror);
 
@@ -837,10 +835,10 @@ void build_mirror_from_given_layout(long *X, double *probs, long N, l_matrix &mi
 //            get_complete_partition_borders(X, probs, N, 0, 32, fanThreashold/2, h0_borders, h0_rmses, interval_type);
             get_complete_partition_borders(X, probs, N, 0, buMinFan, fanThreashold/2, h0_borders, h0_rmses, interval_type);
             string h0_borders_path = mirror_dir + "/h0_borders";
-            save_data_int_vec(h0_borders_path.c_str(), h0_borders);
+            data_utils::save_vec_data(h0_borders_path.c_str(), h0_borders);
 
             string h0_rmses_path = mirror_dir + "/h0_rmses";
-            save_data_double_vec(h0_rmses_path.c_str(), h0_rmses);
+            data_utils::save_vec_data(h0_rmses_path.c_str(), h0_rmses);
         }
 
         long n_nodes = layout[0];
@@ -855,7 +853,7 @@ void build_mirror_from_given_layout(long *X, double *probs, long N, l_matrix &mi
         sort(mirror[0].begin(), mirror[0].end());
 
 //        string h0_path = mirror_dir + "/h0.dat";
-//        save_data_int_vec(h0_path.c_str(), mirror[0]);
+//        data_utils::save_vec_data(h0_path.c_str(), mirror[0]);
     }
     int curr_n_nodes = mirror[mirror.size() - 1].size();
     cout << "leaf nodes have been created. n_nodes = " << curr_n_nodes << ", mirror.size = " << mirror.size() << endl;
@@ -863,9 +861,8 @@ void build_mirror_from_given_layout(long *X, double *probs, long N, l_matrix &mi
     int H = layout.size();
     for (int i = 1; i < H - 1; ++i) {
         longVec &bounds = mirror[i-1];
-
-        long *topX = new long[curr_n_nodes+1];
-        std::copy(bounds.begin(), bounds.end(), topX);
+        keyArray topX = make_unique<keyType []>(curr_n_nodes+1);
+        std::copy(bounds.begin(), bounds.end(), topX.get());
         topX[curr_n_nodes] = X[N-1] + 1;
 
         longVec hi_borders;
@@ -887,8 +884,7 @@ void build_mirror_from_given_layout(long *X, double *probs, long N, l_matrix &mi
         sort(mirror[i].begin(), mirror[i].end());
 
 //        string hi_path = mirror_dir + "/h" + to_string(i) + ".dat";
-//        save_data_int_vec(hi_path.c_str(), mirror[i]);
-        delete[] topX;
+//        data_utils::save_vec_data(hi_path.c_str(), mirror[i]);
     }
 
     longVec root_info({X[0]});
@@ -1275,16 +1271,16 @@ long estimate_ideal_layout(int h, long N_last, doubleVec &rmses, long N_at_h0, d
 }
 
 
-void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const string &mirror_dir, int interval_type) {
+void build_ideal_mirror(const keyArray &X, const doubleArray &probs, long N, l_matrix &mirror, const string &mirror_dir, int interval_type) {
     mirror.clear();
-    int dir_status = path_status(mirror_dir);
+    int dir_status = file_utils::path_status(mirror_dir);
 
     if (dir_status > 1) {
         cout << mirror_dir << " exists and it is not a directory path." << endl;
         return;
     }
     else if (dir_status == 0) {
-        create_dir(mirror_dir);
+        file_utils::detect_and_create_dir(mirror_dir);
     } else {
         restore_mirror(mirror_dir, mirror, true);
     }
@@ -1304,10 +1300,10 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
             cout << "Building BU-Tree...... This step may take several minutes but will be executed once only." << endl;
             get_complete_partition_borders(X, probs, N, 0, buMinFan, fanThreashold/2, h0_borders, h0_rmses, interval_type);
             string h0_borders_path = mirror_dir + "/h0_borders";
-            save_data_int_vec(h0_borders_path.c_str(), h0_borders);
+            data_utils::save_vec_data(h0_borders_path.c_str(), h0_borders);
 
             string h0_rmses_path = mirror_dir + "/h0_rmses";
-            save_data_double_vec(h0_rmses_path.c_str(), h0_rmses);
+            data_utils::save_vec_data(h0_rmses_path.c_str(), h0_rmses);
         }
 
         int xcount = 0;
@@ -1333,7 +1329,7 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
         mirror[0].insert(mirror[0].end(), h0_borders.begin(), h0_borders.begin() + est_n_nodes);
         sort(mirror[0].begin(), mirror[0].end());
 //        string h0_path = mirror_dir + "/h0.dat";
-//        save_data_int_vec(h0_path.c_str(), mirror[0]);
+//        data_utils::save_vec_data(h0_path.c_str(), mirror[0]);
     }
 
 //    cout << "BU leaf nodes have been created. #nodes = " << mirror[0].size() << endl;
@@ -1344,19 +1340,18 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
         longVec &highest_bounds = mirror[curr_h-1];
         int curr_n_nodes = highest_bounds.size();
 
-        long *topX = new long[curr_n_nodes+1];
-        std::copy(highest_bounds.begin(), highest_bounds.end(), topX);
+        keyArray topX = make_unique<keyType []>(curr_n_nodes+1);
+        std::copy(highest_bounds.begin(), highest_bounds.end(), topX.get());
         topX[curr_n_nodes] = X[N-1] + 1;
 
         if (curr_h > 1 && curr_n_nodes <= 10000) {
             mirror.push_back(root_info);
-            delete[] topX;
             break;
         }
 
         linearRegressor root_lr;
-        root_lr.init(topX, 0, 0, curr_n_nodes);
-        double root_rmse = root_lr.cal_loss(topX, curr_n_nodes);
+        root_lr.init(topX.get(), 0, 0, curr_n_nodes);
+        double root_rmse = root_lr.cal_loss(topX.get(), curr_n_nodes);
         root_rmse = sqrt(root_rmse / curr_n_nodes);
         double root_lin_loss = root_rmse / 4;
         double root_bin_loss = (root_rmse > 2) ? 2 * log(root_rmse) / log(2.0) : 2;
@@ -1368,7 +1363,7 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
         doubleVec hi_rmses;
         bool restore_status = restore_complete_borders(mirror_dir, curr_h, hi_borders);
         if (!restore_status) {
-            get_complete_partition_borders(topX, NULL, curr_n_nodes, curr_h, 100, fanThreashold/2, hi_borders, hi_rmses, interval_type);
+            get_complete_partition_borders(topX, nullptr, curr_n_nodes, curr_h, 100, fanThreashold/2, hi_borders, hi_rmses, interval_type);
 //            get_complete_partition_borders(topX, NULL, curr_n_nodes, curr_h, buMinFan * 2, fanThreashold/2, hi_borders, hi_rmses, interval_type);
         }
 
@@ -1384,7 +1379,6 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
 
         if (curr_h > 1 && root_loss < hi_loss) {
             mirror.push_back(root_info);
-            delete[] topX;
             break;
         } else {
             mirror.push_back(longVec());
@@ -1394,7 +1388,6 @@ void build_ideal_mirror(long *X, double *probs, long N, l_matrix &mirror, const 
             mirror[curr_h].insert(mirror[curr_h].end(), hi_borders.begin(), hi_borders.begin() + est_n_nodes);
             sort(mirror[curr_h].begin(), mirror[curr_h].end());
         }
-        delete[] topX;
     }
 
 }
@@ -1408,11 +1401,11 @@ void restore_mirror(const string &mirror_dir, l_matrix &mirror, bool ideal) {
         }
 
 
-        int hi_status = path_status(hi_path);
+        int hi_status = file_utils::path_status(hi_path);
 //        cout << "hi_path = " << hi_path << ", status = " << hi_status << endl;
         if (hi_status > 1) {
             mirror.push_back(longVec());
-            load_data_int_vec(hi_path.c_str(), mirror[h]);
+            data_utils::load_vec_data(hi_path.c_str(), mirror[h]);
             longVec &lv = mirror[h];
 //            long *tmp_data = new long[lv.size()];
 //            std::copy(lv.begin(), lv.end(), tmp_data);
@@ -1428,10 +1421,10 @@ void restore_mirror(const string &mirror_dir, l_matrix &mirror, bool ideal) {
 
 bool restore_complete_borders(const string &mirror_dir, const int h, longVec &borders) {
     string hi_path = mirror_dir + "/h" + to_string(h) + "_borders";
-    int hi_status = path_status(hi_path);
+    int hi_status = file_utils::path_status(hi_path);
     if (hi_status > 1) {
         borders.clear();
-        load_data_int_vec(hi_path.c_str(), borders);
+        data_utils::load_vec_data(hi_path.c_str(), borders);
         return true;
     }
     return false;
@@ -1443,10 +1436,10 @@ bool restore_complete_borders_and_losses(const string &mirror_dir, const int h, 
         return false;
     }
     string hi_path = mirror_dir + "/h" + to_string(h) + "_rmses";
-    int hi_status = path_status(hi_path);
+    int hi_status = file_utils::path_status(hi_path);
     if (hi_status > 1) {
         losses.clear();
-        load_data_double_vec(hi_path.c_str(), losses);
+        data_utils::load_vec_data(hi_path.c_str(), losses);
         return true;
     }
     return false;

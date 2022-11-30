@@ -1,7 +1,7 @@
 #include "diliNode.h"
 #include "../butree/interval_utils.h"
 #include "../global/global.h"
-#include "../global/utils.h"
+#include "../utils/data_utils.h"
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
@@ -15,7 +15,7 @@
 namespace diliFunc {
     pair<diliNode **, double *>
     create_children(const int &height, diliNode **parents, int n_parents, double *parents_range_froms,
-                    long *split_keys_for_children, long *payloads, int n_keys,
+                    keyType *split_keys_for_children, recordPtr *ptrs, int n_keys,
                     int &act_total_N_children);
 }
 
@@ -78,7 +78,7 @@ public:
             size += sizeof(diliNode) - 3 * sizeof(int);
 
             for (int i = 0; i < node->fanout; ++i) {
-                keyPayload &kp = node->kp_data[i];
+                pairEntry &kp = node->pe_data[i];
                 if (kp.key < 0) {
                     size += sizeof(diliNode *);
                     if (kp.key == -1) {
@@ -102,10 +102,10 @@ public:
 //            }
 
             size += sizeof(diliNode) - 3 * sizeof(int);
-            size += sizeof(keyPayload) * node->fanout;
+            size += sizeof(pairEntry) * node->fanout;
 
             for (int i = 0; i < node->fanout; ++i) {
-                keyPayload &kp = node->kp_data[i];
+                pairEntry &kp = node->pe_data[i];
                 if (kp.key < 0) {
                     if (kp.key == -1) {
                         s.push(kp.child);
@@ -123,15 +123,15 @@ public:
     }
 
     void order_check() {
-        long *tmp_keys = new long[totalDataSize];
+        keyType *tmp_keys = new keyType [totalDataSize];
         root->collect_all_keys(tmp_keys);
         cout << "---------check, N = " << root->num_nonempty << "----------" << endl;
-        check(tmp_keys, root->num_nonempty);
+        data_utils::check(tmp_keys, root->num_nonempty);
         cout << "----------------------------------------" << endl;
         delete[] tmp_keys;
     }
 
-    void build_from_mirror(l_matrix &mirror, long *all_keys, long *all_payloads, long N) {
+    void build_from_mirror(l_matrix &mirror, const keyArray &all_keys, const recordPtrArray &all_ptrs, long N) {
         size_t H = mirror.size();
 
 //        cout << "+++H = " << H << endl;
@@ -141,8 +141,8 @@ public:
             n_nodes_each_level_mirror.push_back(lv.size());
         }
 
-        long **split_keys_list = new long*[H];
-        split_keys_list[0] = all_keys;
+        keyType **split_keys_list = new keyType *[H];
+        split_keys_list[0] = all_keys.get();
 
         for (int height = H - 1; height > 0; --height) {
             longVec &lv = mirror[height-1];
@@ -153,7 +153,7 @@ public:
             split_keys[n_split_keys] = all_keys[N-1] + 1;
 
             split_keys_list[height] = split_keys;
-            check(split_keys, n_split_keys+1);
+            data_utils::check(split_keys, n_split_keys+1);
         }
         root = new diliNode(true);
 //    root->set_range(0, all_keys[N-1] + 1);
@@ -165,11 +165,11 @@ public:
         root->a = -(root->b * lbd);
         n_nodes_each_level.push_back(1);
 //    root->children_init();
-        root->kp_data = new keyPayload[root->fanout];
+        root->pe_data = new pairEntry[root->fanout];
 
 //        cout << "lbd = " << lbd << ", ubd = " << ubd << ", n_keys = " << n_keys << ", max_key = " << all_keys[N-1] << endl;
 
-        long lastone = split_keys_list[H - 2][n_nodes_each_level_mirror[H-3]-1];
+        keyType lastone = split_keys_list[H - 2][n_nodes_each_level_mirror[H-3]-1];
 //        cout << "a = " << root->a << ", b = " << root->b
 //             << ", lr(x[0]) = " << int(root->a + root->b * split_keys_list[H - 1][0])
 //             << ", lr(x[1]) = " << int(root->a + root->b * split_keys_list[H - 1][1])
@@ -200,15 +200,15 @@ public:
             }
 //            cout << "1. here is OK." << endl;
 
-            long *payloads = NULL;
+            recordPtr *ptrs = NULL;
             if (height == 1) {
-                payloads = all_payloads;
+                ptrs = all_ptrs.get();
             }
 
 //            cout << "2. here is OK." << endl;
 
             pair<diliNode **, double *> _pair = diliFunc::create_children(height, parents, n_parents, parents_range_froms, split_keys_list[height-1],
-                                                                          payloads, n_keys, act_total_N_children);
+                                                                          ptrs, n_keys, act_total_N_children);
             children = _pair.first;
             double *children_range_froms = _pair.second;
 //            cout << "3. here is OK." << endl;
@@ -246,7 +246,7 @@ public:
 //        }
 //    }
 //    cout << "---------check, N = " << _j << "----------" << endl;
-//    check(tmp_keys, _j);
+//    data_utils::check(tmp_keys, _j);
 //    cout << "----------------------------------------" << endl;
 //    delete[] tmp_keys;
 
@@ -257,7 +257,7 @@ public:
         for (int i = 0; i < act_total_N_children; ++i) {
             diliNode *leaf = children[i];
             int _num_nonempty = leaf->num_nonempty;
-            leaf->bulk_loading(all_keys + start_idx, all_payloads + start_idx, print);
+            leaf->bulk_loading(all_keys.get() + start_idx, all_ptrs.get() + start_idx, print);
             start_idx += _num_nonempty;
         }
         if (start_idx != N) {
@@ -265,7 +265,7 @@ public:
         }
         assert(start_idx == N);
 
-//        validness_check(all_keys, all_payloads, N);
+//        validness_check(all_keys, all_ptrs, N);
 
         root->trim();
 //        cout << "+++1. here is OK." << endl;
@@ -279,7 +279,7 @@ public:
 //        cout << "+++4. here is OK." << endl;
         root->init_after_bulk_load();
 //        cout << "+++5. here is OK." << endl;
-//        validness_check(all_keys, all_payloads, N);
+//        validness_check(all_keys, all_ptrs, N);
 
 //        cout << "layout: [" << n_nodes_each_level[0];
 //        for (size_t i = 1; i < n_nodes_each_level.size(); ++i) {
@@ -288,18 +288,24 @@ public:
 //        cout << "]" << endl;
     }
 
-    void validness_check(long *keys, long *payloads, int n_keys) {
+    void validness_check(keyType *keys, recordPtr *ptrs, int n_keys) {
         for (int i = 0; i < n_keys; ++i) {
-            long pred = search(keys[i]);
-            if (pred != payloads[i]) {
-                cout << "i = " << i << ", key = " << keys[i] << ", pred = " << pred << ", payload = " << payloads[i] << endl;
+            recordPtr pred = search(keys[i]);
+            if (pred != ptrs[i]) {
+                cout << "i = " << i << ", key = " << keys[i] << ", pred = " << pred << ", ptr = " << ptrs[i] << endl;
             }
-            assert(pred == payloads[i]);
+            assert(pred == ptrs[i]);
         }
     }
 
-    inline bool insert(const long &key, const long &payload) { return root->insert(key, payload); };
-    inline bool erase(const long &key) { return 0 <= (root->erase(key)); }
+    inline bool insert(const keyType &key, const recordPtr &ptr) { return root->insert(key, ptr); };
+    inline bool insert(const pair<keyType, recordPtr> &p) { return root->insert(p.first, p.second); };
+    inline bool erase(const keyType &key) { return 0 <= (root->erase(key)); }
+    inline recordPtr delete_key(const keyType &key) {
+        recordPtr ptr = static_cast<recordPtr>(-1);
+        root->erase_and_get_ptr(key, ptr);
+        return ptr;
+    }
 
     void save(const string &path);
     void load(const string &path);
@@ -307,7 +313,7 @@ public:
 
 
     // only called on bulk loading stage
-    inline diliNode* find_leaf(const long &key) {
+    inline diliNode* find_leaf(const keyType &key) {
         diliNode *node = root->find_child(key);
         while (node->is_internal()) {
             node = node->find_child(key);
@@ -316,14 +322,14 @@ public:
     }
 
 
-    inline long search(const long &key) {
+    inline long search(const keyType &key) {
 //        std::cout << "******key = " << key << std::endl;
         diliNode *node = root;
         while (true) {
             int pred = LR_PRED(node->a, node->b, key, node->fanout);
-            keyPayload &kp = node->kp_data[pred];
+            pairEntry &kp = node->pe_data[pred];
             if (kp.key == key) {
-                return kp.payload;
+                return kp.ptr;
             } else if (kp.key == -1) {
                 node = kp.child;
             } else if (kp.key == -2) {
@@ -342,19 +348,19 @@ public:
         }
     }
 
-    inline int range_query(const long &k1, const long &k2, long *payloads) { return root->range_query(k1, k2, payloads); }
+    inline int range_query(const keyType &k1, const keyType &k2, recordPtr *ptrs) { return root->range_query(k1, k2, ptrs); }
 
-    inline long search_w_print(const long &key) {
+    inline long search_w_print(const keyType &key) {
         return root->leaf_find_w_print(key);
     }
 
-    inline int depth(const long &key) {
+    inline int depth(const keyType &key) {
         diliNode *node = root;
         int depth = 0;
         while (true) {
             ++depth;
             int pred = LR_PRED(node->a, node->b, key, node->fanout);
-            keyPayload &kp = node->kp_data[pred];
+            pairEntry &kp = node->pe_data[pred];
 //            if (key == 572167479012l || key == 572167481113l) {
 //                cout << "key = " << key << ", is_internal = " << node->is_internal() << ", pred = " << pred << ", fanout = "
 //                     << node->fanout << ", num_nonempty = " << node->num_nonempty << ", kp.key = " << kp.key << endl;
@@ -375,11 +381,12 @@ public:
         }
     }
 
-    void bulk_load(long *keys, long *payloads, int n_keys);//, const string &mirror_dir, const string &layout_conf_path, int interval_type=1);
+    void bulk_load(const keyArray &keys, const recordPtrArray &ptrs, long n_keys);//, const string &mirror_dir, const string &layout_conf_path, int interval_type=1);
+    void bulk_load(const std::vector< pair<keyType, recordPtr> > &bulk_load_data);
     void debug_help(bool print=false){} // will be deprecated
     void stats();
     void check_num_nonempty() { root->check_num_nonempty(); }
-    double avg_depth(long *keys, long n_keys) {
+    double avg_depth(keyType *keys, long n_keys) {
         double avg_depth = 0;
         for (long i = 0; i < n_keys; ++i) {
             avg_depth += depth(keys[i]);

@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include "global_typedef.h"
 
 #ifndef DILI_GLOBAL_H
 #define DILI_GLOBAL_H
@@ -15,13 +16,11 @@
 #define MIN_DOUBLE(a, b) std::min<double>(a, b)
 #define MAX_DOUBLE(a, b) std::max<double>(a, b)
 
-#define KEY_TYPE long
-#define PAYLOAD_TYPE long
 
-extern const int totalDataSize;
-extern const long halfN;
-extern const long query_step;
-extern const long query_start_idx;
+extern long totalDataSize;
+extern long halfN;
+extern long query_step;
+extern long query_start_idx;
 
 extern const long n_query_keys;
 extern const double R1;
@@ -33,6 +32,8 @@ extern const int fanThreashold;
 
 #define LEAF_MAX_CAPACIY 8192
 #define minFan 2
+
+#define MIN_KEY(a, b) std::min<keyType>(a, b)
 
 //extern const int Delta;
 //extern const int nThreads;
@@ -47,31 +48,24 @@ extern int buMinFan;
 extern double max_expanding_ratio;
 extern double retrain_threshold;
 
-typedef std::vector<int> intVec;
-typedef std::vector<double> doubleVec;
-typedef std::vector<long> longVec;
-typedef std::vector<double> d_vector;
-typedef std::vector< std::vector<double> > d_matrix;
-typedef std::vector< std::vector<long> > l_matrix;
-typedef std::vector< std::vector<int> > i_matrix;
 
 
 struct diliNode;
 struct fan2Leaf;
 
-struct keyPayload {
-    long key; // key >= 0: paylaod is the payload of key, key == -1: payload is a child; key < - 1: this position is empty
-    union {long payload; diliNode *child; fan2Leaf *fan2child; };
+struct pairEntry {
+    keyType key; // key >= 0: ptr is the index of the record in the data array, key == -1: ptr is a child; key < - 1: this position is empty
+    union {recordPtr ptr; diliNode *child; fan2Leaf *fan2child; };
 
-    keyPayload(): key(-3), payload(-3) {}
-    inline void setNull() { key = -3; payload = -3;}
+    pairEntry(): key(-3), ptr(-3) {}
+    inline void setNull() { key = -3; ptr = -3;}
 
 
 //    inline long getPayload() { return payload;}
 //    inline dillNode* getChild() { return child;}
 //    inline fan2Leaf* getFan2Child() { return fan2child;}
 
-    inline void assign(long _k, long _p) { key = _k; payload = _p; }
+    inline void assign(keyType _k, recordPtr _p) { key = _k; ptr = _p; }
     inline void setChild(diliNode *_child) { key = -1; child = _child;};
     inline void setFan2Child(fan2Leaf *_fan2child) { key = -2; fan2child = _fan2child;};
 

@@ -16,11 +16,11 @@
 
 
 const double CACHE_MISS_LOSS = 1;
-const int totalDataSize = 200000000;
-const long halfN = totalDataSize / 2;
-const long query_step = 100;
-const long query_start_idx = query_step / 2;
-const long n_query_keys = halfN / query_step;
+long totalDataSize = 200000000l;
+long halfN = totalDataSize / 2;
+const long n_query_keys = 1000000l;
+long query_step = 100;
+long query_start_idx = query_step / 2;
 
 
 const double R1 = 25.0 / 130.0;
