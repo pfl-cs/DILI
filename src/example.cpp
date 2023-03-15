@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
 
     DILI dili;
     dili.set_mirror_dir(mirror_dir);
-    dili.bulk_load(bulk_load_data);
+    dili.bulk_load(bulk_load_data); // or uint64_t construction_time = dili.Build(bulk_load_data);
 
     cout << "Bulk loading test......";
     for (long i = 0; i < QUERY_SIZE; ++i) {
