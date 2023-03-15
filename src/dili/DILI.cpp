@@ -137,6 +137,7 @@ void DILI::bulk_load(const keyArray &keys, const recordPtrArray &ptrs, long n_ke
     const int interval_type = 1;
     l_matrix mirror;
     build_ideal_mirror(keys, nullptr, n_keys, mirror, mirror_dir, interval_type);
+//    build_mirror(keys, nullptr, n_keys, mirror, mirror_dir, interval_type);
 
 //    cout << "----mirror.layout:------" << endl;
 //    for (size_t i = 0; i < mirror.size(); ++i) {
@@ -146,7 +147,6 @@ void DILI::bulk_load(const keyArray &keys, const recordPtrArray &ptrs, long n_ke
 
     cout << "Building " << name() << "......" << endl;
     build_from_mirror(mirror, keys, ptrs, n_keys);
-//    order_check();
 }
 
 void DILI::bulk_load(const std::vector< pair<keyType, recordPtr> > &bulk_load_data) {
@@ -160,17 +160,4 @@ void DILI::bulk_load(const std::vector< pair<keyType, recordPtr> > &bulk_load_da
     keys[N] = keys[N-1] + 1;
     ptrs[N] = -1;
     bulk_load(keys, ptrs, static_cast<long>(N));
-}
-
-void DILI::stats() {
-    int n0 = 0;
-    int n1 = 0;
-    int n2 = 0;
-    int n = 0;
-    long total_fan = 0;
-    long n_empty_slots = 0;
-    root->num_nonempty_stats(n0, n1, n2, n, total_fan, n_empty_slots);
-    cout << "--------------" << endl;
-    cout << "n0 = " << n0 << ", n1 = " << n1 << ", n2 = " << n2 << ", n = " << n << ", total_fan = " << total_fan << ", n_empty_slots = " << n_empty_slots << endl;
-    cout << "--------------" << endl;
 }

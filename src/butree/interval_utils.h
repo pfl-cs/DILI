@@ -39,6 +39,7 @@ typedef std::priority_queue< dl_pair, std::vector<dl_pair>, pair_max_comparator 
 void get_complete_partition_borders(const keyArray X, const doubleArray &probs, long N, int h, long min_border_size, longVec &complete_borders, doubleVec &complete_avg_rmses, int interval_type=0);
 //void get_complete_partition_borders(long *X, double *probs, long N, int h, long min_border_size, longVec &complete_borders, int interval_type=0);
 
+void build_mirror(const keyArray &X, const doubleArray &probs, long N, l_matrix &mirror, const std::string &mirror_dir, int interval_type);
 void build_ideal_mirror(const keyArray &X, const doubleArray &probs, long N, l_matrix &mirror, const std::string &mirror_dir, int interval_type);
 void build_mirror_from_given_layout(const keyArray &X, const doubleArray &probs, long N, l_matrix &mirror, const std::string &mirror_dir, const longVec &layout, int interval_type = 0);
 

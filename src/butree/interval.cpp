@@ -26,6 +26,26 @@ double interval::init_lr(bool force_init) {
     }
 }
 
+double interval::init_lr_w_sampling(bool force_init) {
+    if (force_init) {
+        if (lr) {
+            delete lr;
+            lr = NULL;
+        }
+    }
+    if (!lr) {
+        lr = new linearRegressor();
+        if (lSib) {
+            lr->init_w_sampling(data, lSib->start_idx, start_idx, fanout);
+        } else {
+            lr->init_w_sampling(data, start_idx, start_idx, fanout);
+        }
+        return lr->cal_loss_w_sampling(data + start_idx, fanout);
+    } else {
+        return linear_loss;
+    }
+}
+
 bool interval::check_lr_delta_x() {
     if (lSib) {
         if (lr && lSib->lr) {

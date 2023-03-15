@@ -14,26 +14,7 @@
 #include <vector>
 using namespace std;
 
-void check_order(keyType *data, long n) {
-    for (long i = 1; i < n; ++i) {
-        if (data[i - 1] >= data[i]) {
-            cout << "i = " << i << ", data[i-1] = " << data[i-1] << ", data[i] = " << data[i] << endl;
-        }
-        assert(data[i-1] < data[i]);
-    }
 
-}
-
-void border_set_check(interval_set &cs) {
-    interval *first_i_ptr = *(cs.begin());
-    double last_val = first_i_ptr->merge_metric;
-    for (auto it = cs.begin(); it != cs.end(); ++it) {
-        interval *i_ptr = *it;
-        double val = i_ptr->merge_metric;
-        assert(last_val <= val);
-        last_val = val;
-    }
-}
 
 void check_intervals(interval *i_ptr) {
     int count = 1;
@@ -49,57 +30,6 @@ void check_intervals(interval *i_ptr) {
         ++count;
     }
 //    cout << "****count = " << count << endl;
-}
-
-void print_intervals_info(interval *i_ptr) {
-    cout << "----------------------------------" << endl;
-    int count0 = 0;
-    int count1 = 0;
-    int count2 = 0;
-    int count3 = 0;
-    int count4 = 0;
-
-    long s0 = 0;
-    long s1 = 0;
-    long s2 = 0;
-    long s3 = 0;
-
-
-    long sum_fan = 0;
-    while (i_ptr) {
-        sum_fan += i_ptr->fanout;
-        if (i_ptr->fanout >= 1000) {
-            ++count0;
-            s0 += i_ptr->fanout;
-        }
-        if (i_ptr->fanout >= 10000) {
-            ++count1;
-            s1 += i_ptr->fanout;
-            cout << "fanout = " << i_ptr->fanout << endl;
-        }
-        if (i_ptr->fanout >= 100000) {
-            ++count2;
-            s2 += i_ptr->fanout;
-        }
-        if (i_ptr->fanout >= 100) {
-            ++count3;
-            s3 += i_ptr->fanout;
-        }
-
-        if (i_ptr->fanout <= 2) {
-            ++count4;
-        }
-
-        i_ptr = i_ptr->rSib;
-    }
-
-//    cout << "sum_fan = " << sum_fan << endl;
-//    cout << "count0 = "<< count0 << ", s0 = "<< s0 << endl;
-//    cout << "count1 = "<< count1 << ", s1 = "<< s1 << endl;
-//    cout << "count2 = "<< count2 << ", s2 = "<< s2 << endl;
-    cout << "count3 = "<< count3 << ", s3 = "<< s3 << endl;
-    cout << "count4 = "<< count4 << endl;
-    cout << "**********************************" << endl;
 }
 
 double cal_loss(long N, long n_intervals, double total_linear_loss, bool print=false) {
@@ -139,59 +69,6 @@ double cal_loss(long N, long n_intervals, double total_linear_loss, bool print=f
     return loss;
 }
 
-double cal_loss2(long N, long n_intervals, double total_linear_loss, bool print=false) {
-    double avg_linear_loss = sqrt(total_linear_loss / N);
-    avg_linear_loss = 1 + ((avg_linear_loss > 1) ? (2 * log(avg_linear_loss) / log(2.0)) : 0);
-    assert(avg_linear_loss >= 1);
-
-    double base = 1.0 * N / n_intervals;
-    double n_stages = log(N) / log(base);
-//    double loss = ((4 + R1) * n_stages - 1) + (1 + R2) * avg_linear_loss;
-
-
-//    return loss;
-//
-    double s = 0;
-    double x = n_stages;
-    int h = 0;
-    double item = 0;
-    const double r = 0.2;
-    while (true) {
-        item = pow(r, h);
-        ++h;
-        if (x <= 1) {
-            s += item * x;
-            break;
-        }
-        x -= 1;
-        s += item;
-    }
-
-
-    double loss = ((2 + R1) * n_stages - 1) + s * (1 + R2) * avg_linear_loss;
-    if (print) {
-        cout << "n_stages = " << n_stages << ", linear_loss = " << avg_linear_loss << ", xl_loss = "
-             << (1 + R2) * avg_linear_loss << ", other_loss = " << (2 + R1) * n_stages - 1 << ", s = " << s << endl;
-    }
-    return loss;
-}
-
-double cal_loss3(long N, long n_intervals, double total_linear_loss, bool print=false) {
-    double base = 1.0 * N / n_intervals;
-    double n_stages = log(N) / log(base);
-    double avg_linear_loss = sqrt(total_linear_loss / N);
-    avg_linear_loss = (avg_linear_loss > 1) ? log(avg_linear_loss) / log(2.0) : 0;
-    double loss = log(n_intervals) / log(2.0) + avg_linear_loss;
-    if (print) {
-        cout << "linear_loss = " << avg_linear_loss << ", other_loss = " << log(n_intervals) / log(2.0) << ", total_loss = " << loss << endl;
-    }
-//    double loss = n_stages * avg_linear_loss;
-//    if (print) {
-//        cout << "linear_loss = " << avg_linear_loss << ", n_stages = " << n_stages << ", total_loss = " << loss << endl;
-//    }
-    return loss;
-}
-
 //longVec &complete_borders,
 double partition(const keyArray &X, const doubleArray &probs, long N, int h, longVec &best_borders, long min_border_size, longVec &complete_borders, doubleVec &complete_losses, int interval_type){
     interval::data = X.get();
@@ -221,6 +98,9 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
     size_t last_size = 0;
     interval_set cs;
     long data_idx = 0;
+
+    cout << "step-1 starts." << endl;
+    auto start = chrono::system_clock::now();
     for (long i = 2; i < N; i += 2) {
         keyType x = X[i];
 //        long x0 = x - 1;
@@ -286,6 +166,10 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
         }
     }
 
+    auto stop = chrono::system_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    double response_time = static_cast<double>(duration.count());
+    cout << "step-1 takes " << response_time << " seconds." << endl;
 //    border_set_check(cs);
 //    check_intervals(leftest_interval);
 
@@ -306,6 +190,9 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
 
     long n_merges = 0;
     last_size = cs.size();
+
+    cout << "step-2 starts." << endl;
+    start = chrono::system_clock::now();
     while (n_merges < least_num_merge) {
         bool merge_flag = true;
         interval *i_ptr = *(cs.begin());
@@ -355,7 +242,10 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
             cs.insert(i_ptr);
         }
     }
-
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-2 takes " << response_time << " seconds." << endl;
 //    check_intervals(leftest_interval);
 
 
@@ -364,6 +254,8 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
 
     double total_linear_loss = 0;
 
+    cout << "step-3 starts." << endl;
+    start = chrono::system_clock::now();
     long sum_fan = 0;
     while (i_ptr) {
         border_set.insert(X[i_ptr->start_idx]); // border_set.insert(i_ptr->lbd);
@@ -374,11 +266,14 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
         i_ptr = i_ptr->rSib;
 
     }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-3 takes " << response_time << " seconds." << endl;
 //    border_set.insert(X[N-1] + 1);
 
 //    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
 
-//    print_intervals_info(leftest_interval);
     check_intervals(leftest_interval);
 
     double best_loss = cal_loss(N, border_set.size() - 1, total_linear_loss, true);
@@ -395,6 +290,9 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
     if (min_border_size > 0) {
         min_size = min_border_size;
     }
+
+    cout << "step-4 starts." << endl;
+    start = chrono::system_clock::now();
     while (border_set.size() > min_size) {
         interval *i_ptr = *(cs.begin());
         cs.erase(i_ptr);
@@ -465,6 +363,10 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
             cs.insert(original_rSib);
         }
     }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-4 takes " << response_time << " seconds." << endl;
 
 
     // complete_borders should not be sorted.
@@ -497,6 +399,525 @@ double partition(const keyArray &X, const doubleArray &probs, long N, int h, lon
     return best_loss;
 }
 
+void get_complete_partition_borders_for_lowest_layer(const keyArray &X, long N, int h, long min_fanout, long max_fanout, longVec &complete_borders, doubleVec &complete_avg_rmses, int interval_type){
+    interval::data = X.get();
+
+    double single_prob = 1.0; // 1.0 / N;
+
+    set<long> border_set;
+    keyType last_ubd = X[0] - 1;
+
+    interval *lSib = intervalInstance::newInstance(interval_type);
+    const int init_fan = 4;
+
+    lSib->fanout = init_fan;
+    lSib->prob_sum = single_prob * init_fan;
+
+    lSib->start_idx = 0;
+    lSib->end_idx = init_fan;
+    lSib->lbd = last_ubd;
+    last_ubd = lSib->ubd = X[1] + 1;
+    lSib->init_merge_info();
+
+    interval *leftest_interval = lSib;
+    long s_j = 1;
+
+    size_t last_size = 0;
+    interval_set cs;
+    long data_idx = 0;
+
+    cout << "step-1 starts." << endl;
+    auto start = chrono::system_clock::now();
+    for (long i = init_fan; i < N; i += init_fan) {
+        keyType x = X[i];
+        int fan = init_fan;
+        if (i + init_fan + 1 >= N) {
+            fan = N - i;
+        }
+        keyType x2 = X[i + fan - 1] + 1;
+
+        interval *i_ptr = intervalInstance::newInstance(interval_type);
+        i_ptr->fanout = fan;
+
+        lSib->prob_sum = single_prob * fan;
+
+        i_ptr->start_idx = i;
+        i_ptr->end_idx = i + fan;
+//        i_ptr->lbd = std::max<long>(last_ubd, x0);
+        i_ptr->lbd = x;
+        last_ubd = i_ptr->ubd = x2;
+
+        lSib->rSib = i_ptr;
+        i_ptr->lSib = lSib;
+
+        i_ptr->init_merge_info();
+        lSib->cal_merge_info(h);
+
+        cs.insert(lSib);
+//        if (cs.size() != (last_size + 1)) {
+//            cout << "cs.size() = " << cs.size() << ", last_size = " << last_size << endl;
+//        }
+//        assert(cs.size() == last_size + 1);
+        last_size = cs.size();
+        ++s_j;
+        lSib = i_ptr;
+        if (fan > init_fan) {
+            break;
+        }
+    }
+    if (s_j != cs.size() + 1) {
+        cout << "s_j = " << s_j << ", cs.size() = " << cs.size() << endl;
+    }
+
+    assert (s_j == cs.size() + 1);
+
+    auto stop = chrono::system_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    double response_time = static_cast<double>(duration.count());
+    cout << "step-1 takes " << response_time << " seconds." << endl;
+
+
+    assert(s_j == cs.size() + 1);
+
+    long max_s_j = N / min_fanout;
+    long least_num_merge = s_j - max_s_j;
+
+//    cout << "step-2 finished. s_j = " << s_j << ", least_num_merge = " << least_num_merge << ", cs.size() = " << cs.size() << endl;
+
+    long n_merges = 0;
+    last_size = cs.size();
+
+    cout << "step-2 starts." << endl;
+    start = chrono::system_clock::now();
+    while (n_merges < least_num_merge) {
+        interval *i_ptr = *(cs.begin());
+        cs.erase(i_ptr);
+
+        interval *original_rSib = i_ptr->rSib;
+        assert(original_rSib);
+        cs.erase(original_rSib);
+
+        bool merge_flag = i_ptr->merge_with_rSib(h);
+
+        if (merge_flag) {
+            original_rSib->rSib = NULL;
+            original_rSib->lSib = NULL;
+            original_rSib->setInvalid();
+            original_rSib->free_data();
+            delete original_rSib;
+
+            if (i_ptr->rSib) {
+                i_ptr->cal_merge_info(h);
+                cs.insert(i_ptr);
+            }
+
+
+            interval *lSib = i_ptr->lSib;
+
+            if (lSib) {
+                assert(lSib->rSib == i_ptr);
+                cs.erase(lSib);
+
+                lSib->cal_merge_info(h);
+                cs.insert(lSib);
+            }
+            ++n_merges;
+//            if (n_merges % 100000 == 0) {
+//                cout << "step-3, n_merges = " << n_merges << endl;
+//            }
+
+            assert(last_size == cs.size() + 1);
+            last_size = cs.size();
+        } else {
+            cs.insert(original_rSib);
+            cs.insert(i_ptr);
+        }
+    }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-2 takes " << response_time << " seconds." << endl;
+
+//    cout << "cs.size() = " << cs.size() << endl;
+    if (max_s_j != cs.size() + 1) {
+        cout << "max_s_j = " << max_s_j << ", cs.size = " << cs.size() << endl;
+    }
+    assert(max_s_j == cs.size() + 1);
+    interval *i_ptr = leftest_interval;
+
+    cout << "step-3 starts." << endl;
+    start = chrono::system_clock::now();
+
+    long sum_fan = 0;
+    double total_linear_loss = 0;
+    while (i_ptr) {
+        border_set.insert(X[i_ptr->start_idx]);
+//        sum_fan += i_ptr->fanout;
+        i_ptr->linear_loss = i_ptr->init_lr();
+        total_linear_loss += i_ptr->linear_loss;
+        sum_fan += i_ptr->fanout;
+        i_ptr = i_ptr->rSib;
+    }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-3 takes " << response_time << " seconds." << endl;
+
+    if (max_s_j != border_set.size()) {
+        cout << "max_s_j = " << max_s_j << ", border_set.size = " << border_set.size() << endl;
+    }
+    assert(border_set.size() == max_s_j);
+//    border_set.insert(X[N-1] + 1);
+//    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
+
+    check_intervals(leftest_interval);
+
+    n_merges = 0;
+    longVec deleted_borders;
+    long min_size = N / max_fanout; // assert(max_fanout <= fanThreshold / 2);
+//    min_size = std::max<long>(min_size, 100);
+    if (min_size <= 0) {
+        min_size = 2;
+    }
+
+    cout << "step-4 starts." << endl;
+    start = chrono::system_clock::now();
+
+    doubleVec all_rmses;
+    while (border_set.size() > min_size) {
+        interval *i_ptr = *(cs.begin());
+        cs.erase(i_ptr);
+
+        interval *original_rSib = i_ptr->rSib;
+        cs.erase(original_rSib);
+
+        long border_to_delete = original_rSib->lbd;
+
+        double _total_loss = total_linear_loss - i_ptr->linear_loss - original_rSib->linear_loss;
+        bool merge_flag = i_ptr->merge_with_rSib(h, true);
+
+        if (merge_flag) {
+            border_set.erase(border_to_delete);
+            deleted_borders.push_back(border_to_delete);
+            total_linear_loss = _total_loss + i_ptr->linear_loss;
+
+            double rmse = sqrt(total_linear_loss / N);
+            all_rmses.push_back(rmse);
+
+            original_rSib->rSib = NULL;
+            original_rSib->setInvalid();
+            original_rSib->free_data();
+            delete original_rSib;
+
+            if (i_ptr->rSib) {
+                i_ptr->cal_merge_info(h);
+                cs.insert(i_ptr);
+            }
+
+            interval *lSib = i_ptr->lSib;
+            if (lSib) {
+                cs.erase(lSib);
+                lSib->cal_merge_info(h);
+                cs.insert(lSib);
+            }
+
+            ++n_merges;
+//            if (n_merges % 100000 == 0) {
+//                cout << "step-5, n_merges = " << n_merges << ", n_intervals = " << border_set.size() - 1 << endl;
+//            }
+        } else {
+            cs.insert(original_rSib);
+            cs.insert(i_ptr);
+        }
+    }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-4 takes " << response_time << " seconds." << endl;
+
+    assert(min_size == border_set.size());
+    assert(min_size + deleted_borders.size() == max_s_j);
+
+    // complete_borders should not be sorted.
+    complete_borders.clear();
+    complete_borders.insert(complete_borders.end(), border_set.begin(), border_set.end());
+    complete_borders.insert(complete_borders.end(), deleted_borders.rbegin(), deleted_borders.rend());
+    complete_borders.push_back(min_size);
+
+    complete_avg_rmses.clear();
+    for (int i = 0; i < min_size; ++i) {
+        complete_avg_rmses.push_back(1e50);
+    }
+    complete_avg_rmses.insert(complete_avg_rmses.end(), all_rmses.rbegin(), all_rmses.rend());
+
+    i_ptr = leftest_interval;
+    while (i_ptr) {
+        interval *tmp = i_ptr->rSib;
+        delete i_ptr;
+        i_ptr = tmp;
+    }
+}
+
+void get_complete_partition_borders_w_sampling(const keyArray &X, long N, int h, long min_fanout, long max_fanout, longVec &complete_borders, doubleVec &complete_avg_rmses, int interval_type){
+    interval::data = X.get();
+
+    double single_prob = 1.0; // 1.0 / N;
+
+    set<long> border_set;
+    keyType last_ubd = X[0] - 1;
+
+    interval *lSib = intervalInstance::newInstance(interval_type);
+    const int init_fan = 6;
+
+    lSib->fanout = init_fan;
+    lSib->prob_sum = single_prob * init_fan;
+
+    lSib->start_idx = 0;
+    lSib->end_idx = init_fan;
+    lSib->lbd = last_ubd;
+    last_ubd = lSib->ubd = X[1] + 1;
+    lSib->init_merge_info_w_sampling();
+
+    interval *leftest_interval = lSib;
+    long s_j = 1;
+
+    size_t last_size = 0;
+    interval_set cs;
+    long data_idx = 0;
+
+    cout << "step-1 starts." << endl;
+    auto start = chrono::system_clock::now();
+    for (long i = init_fan; i < N; i += init_fan) {
+        keyType x = X[i];
+        int fan = init_fan;
+        if (i + init_fan + 1 >= N) {
+            fan = N - i;
+        }
+        keyType x2 = X[i + fan - 1] + 1;
+
+        interval *i_ptr = intervalInstance::newInstance(interval_type);
+        i_ptr->fanout = fan;
+
+        lSib->prob_sum = single_prob * fan;
+
+        i_ptr->start_idx = i;
+        i_ptr->end_idx = i + fan;
+//        i_ptr->lbd = std::max<long>(last_ubd, x0);
+        i_ptr->lbd = x;
+        last_ubd = i_ptr->ubd = x2;
+
+        lSib->rSib = i_ptr;
+        i_ptr->lSib = lSib;
+
+        i_ptr->init_merge_info_w_sampling();
+        lSib->cal_merge_info_w_sampling(h);
+
+        cs.insert(lSib);
+//        if (cs.size() != (last_size + 1)) {
+//            cout << "cs.size() = " << cs.size() << ", last_size = " << last_size << endl;
+//        }
+//        assert(cs.size() == last_size + 1);
+        last_size = cs.size();
+        ++s_j;
+        lSib = i_ptr;
+        if (fan > init_fan) {
+            break;
+        }
+    }
+    if (s_j != cs.size() + 1) {
+        cout << "s_j = " << s_j << ", cs.size() = " << cs.size() << endl;
+    }
+
+    assert (s_j == cs.size() + 1);
+
+    auto stop = chrono::system_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    double response_time = static_cast<double>(duration.count());
+    cout << "step-1 takes " << response_time << " seconds." << endl;
+
+
+    assert(s_j == cs.size() + 1);
+
+    long max_s_j = N / min_fanout;
+    long least_num_merge = s_j - max_s_j;
+
+//    cout << "step-2 finished. s_j = " << s_j << ", least_num_merge = " << least_num_merge << ", cs.size() = " << cs.size() << endl;
+
+    long n_merges = 0;
+    last_size = cs.size();
+
+    cout << "step-2 starts." << endl;
+    start = chrono::system_clock::now();
+    while (n_merges < least_num_merge) {
+        interval *i_ptr = *(cs.begin());
+        cs.erase(i_ptr);
+
+        interval *original_rSib = i_ptr->rSib;
+        assert(original_rSib);
+        cs.erase(original_rSib);
+
+        bool merge_flag = i_ptr->merge_with_rSib(h);
+
+        if (merge_flag) {
+            original_rSib->rSib = NULL;
+            original_rSib->lSib = NULL;
+            original_rSib->setInvalid();
+            original_rSib->free_data();
+            delete original_rSib;
+
+            if (i_ptr->rSib) {
+                i_ptr->cal_merge_info_w_sampling(h);
+                cs.insert(i_ptr);
+            }
+
+
+            interval *lSib = i_ptr->lSib;
+
+            if (lSib) {
+                assert(lSib->rSib == i_ptr);
+                cs.erase(lSib);
+
+                lSib->cal_merge_info_w_sampling(h);
+                cs.insert(lSib);
+            }
+            ++n_merges;
+//            if (n_merges % 100000 == 0) {
+//                cout << "step-3, n_merges = " << n_merges << endl;
+//            }
+
+            assert(last_size == cs.size() + 1);
+            last_size = cs.size();
+        } else {
+            cs.insert(original_rSib);
+            cs.insert(i_ptr);
+        }
+    }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-2 takes " << response_time << " seconds." << endl;
+
+//    cout << "cs.size() = " << cs.size() << endl;
+    if (max_s_j != cs.size() + 1) {
+        cout << "max_s_j = " << max_s_j << ", cs.size = " << cs.size() << endl;
+    }
+    assert(max_s_j == cs.size() + 1);
+    interval *i_ptr = leftest_interval;
+
+    cout << "step-3 starts." << endl;
+    start = chrono::system_clock::now();
+
+    long sum_fan = 0;
+    double total_linear_loss = 0;
+    while (i_ptr) {
+        border_set.insert(X[i_ptr->start_idx]);
+//        sum_fan += i_ptr->fanout;
+        i_ptr->linear_loss = i_ptr->init_lr_w_sampling();
+        total_linear_loss += i_ptr->linear_loss;
+        sum_fan += i_ptr->fanout;
+        i_ptr = i_ptr->rSib;
+    }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-3 takes " << response_time << " seconds." << endl;
+
+    if (max_s_j != border_set.size()) {
+        cout << "max_s_j = " << max_s_j << ", border_set.size = " << border_set.size() << endl;
+    }
+    assert(border_set.size() == max_s_j);
+//    border_set.insert(X[N-1] + 1);
+//    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
+
+    check_intervals(leftest_interval);
+
+    n_merges = 0;
+    longVec deleted_borders;
+    long min_size = N / max_fanout; // assert(max_fanout <= fanThreshold / 2);
+//    min_size = std::max<long>(min_size, 100);
+    if (min_size <= 0) {
+        min_size = 2;
+    }
+
+    cout << "step-4 starts." << endl;
+    start = chrono::system_clock::now();
+
+    doubleVec all_rmses;
+    while (border_set.size() > min_size) {
+        interval *i_ptr = *(cs.begin());
+        cs.erase(i_ptr);
+
+        interval *original_rSib = i_ptr->rSib;
+        cs.erase(original_rSib);
+
+        long border_to_delete = original_rSib->lbd;
+
+        double _total_loss = total_linear_loss - i_ptr->linear_loss - original_rSib->linear_loss;
+        bool merge_flag = i_ptr->merge_with_rSib(h, true);
+
+        if (merge_flag) {
+            border_set.erase(border_to_delete);
+            deleted_borders.push_back(border_to_delete);
+            total_linear_loss = _total_loss + i_ptr->linear_loss;
+
+            double rmse = sqrt(total_linear_loss / N);
+            all_rmses.push_back(rmse);
+
+            original_rSib->rSib = NULL;
+            original_rSib->setInvalid();
+            original_rSib->free_data();
+            delete original_rSib;
+
+            if (i_ptr->rSib) {
+                i_ptr->cal_merge_info_w_sampling(h);
+                cs.insert(i_ptr);
+            }
+
+            interval *lSib = i_ptr->lSib;
+            if (lSib) {
+                cs.erase(lSib);
+                lSib->cal_merge_info_w_sampling(h);
+                cs.insert(lSib);
+            }
+
+            ++n_merges;
+//            if (n_merges % 100000 == 0) {
+//                cout << "step-5, n_merges = " << n_merges << ", n_intervals = " << border_set.size() - 1 << endl;
+//            }
+        } else {
+            cs.insert(original_rSib);
+            cs.insert(i_ptr);
+        }
+    }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-4 takes " << response_time << " seconds." << endl;
+
+    assert(min_size == border_set.size());
+    assert(min_size + deleted_borders.size() == max_s_j);
+
+    // complete_borders should not be sorted.
+    complete_borders.clear();
+    complete_borders.insert(complete_borders.end(), border_set.begin(), border_set.end());
+    complete_borders.insert(complete_borders.end(), deleted_borders.rbegin(), deleted_borders.rend());
+    complete_borders.push_back(min_size);
+
+    complete_avg_rmses.clear();
+    for (int i = 0; i < min_size; ++i) {
+        complete_avg_rmses.push_back(1e50);
+    }
+    complete_avg_rmses.insert(complete_avg_rmses.end(), all_rmses.rbegin(), all_rmses.rend());
+
+    i_ptr = leftest_interval;
+    while (i_ptr) {
+        interval *tmp = i_ptr->rSib;
+        delete i_ptr;
+        i_ptr = tmp;
+    }
+}
+
+
 void get_complete_partition_borders(const keyArray &X, const doubleArray &probs, long N, int h, long min_fanout, long max_fanout, longVec &complete_borders, doubleVec &complete_avg_rmses, int interval_type){
     interval::data = X.get();
     interval::probs = probs.get();
@@ -525,6 +946,9 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
     size_t last_size = 0;
     interval_set cs;
     long data_idx = 0;
+
+    cout << "step-1 starts." << endl;
+    auto start = chrono::system_clock::now();
     for (long i = 2; i < N; i += 2) {
         keyType x = X[i];
 //        long x0 = x - 1;
@@ -578,6 +1002,12 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
         cout << "s_j = " << s_j << ", cs.size() = " << cs.size() << endl;
     }
 
+    auto stop = chrono::system_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    double response_time = static_cast<double>(duration.count());
+    cout << "step-1 takes " << response_time << " seconds." << endl;
+
+
     assert(s_j == cs.size() + 1);
 
     long max_s_j = N / min_fanout;
@@ -587,6 +1017,9 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
 
     long n_merges = 0;
     last_size = cs.size();
+
+    cout << "step-2 starts." << endl;
+    start = chrono::system_clock::now();
     while (n_merges < least_num_merge) {
         interval *i_ptr = *(cs.begin());
         cs.erase(i_ptr);
@@ -631,6 +1064,10 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
             cs.insert(i_ptr);
         }
     }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-2 takes " << response_time << " seconds." << endl;
 
 //    cout << "cs.size() = " << cs.size() << endl;
     if (max_s_j != cs.size() + 1) {
@@ -639,16 +1076,24 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
     assert(max_s_j == cs.size() + 1);
     interval *i_ptr = leftest_interval;
 
+    cout << "step-3 starts." << endl;
+    start = chrono::system_clock::now();
+
     long sum_fan = 0;
     double total_linear_loss = 0;
     while (i_ptr) {
         border_set.insert(X[i_ptr->start_idx]);
-        sum_fan += i_ptr->fanout;
+//        sum_fan += i_ptr->fanout;
         i_ptr->linear_loss = i_ptr->init_lr();
         total_linear_loss += i_ptr->linear_loss;
         sum_fan += i_ptr->fanout;
         i_ptr = i_ptr->rSib;
     }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-3 takes " << response_time << " seconds." << endl;
+
     if (max_s_j != border_set.size()) {
         cout << "max_s_j = " << max_s_j << ", border_set.size = " << border_set.size() << endl;
     }
@@ -656,7 +1101,6 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
 //    border_set.insert(X[N-1] + 1);
 //    cout << "step-4 finished. border_set.size = " << border_set.size() << ", sum_fan = " << sum_fan << endl;
 
-//    print_intervals_info(leftest_interval);
     check_intervals(leftest_interval);
 
     n_merges = 0;
@@ -666,6 +1110,9 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
     if (min_size <= 0) {
         min_size = 2;
     }
+
+    cout << "step-4 starts." << endl;
+    start = chrono::system_clock::now();
 
     doubleVec all_rmses;
     while (border_set.size() > min_size) {
@@ -681,14 +1128,12 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
         bool merge_flag = i_ptr->merge_with_rSib(h, true);
 
         if (merge_flag) {
-
             border_set.erase(border_to_delete);
             deleted_borders.push_back(border_to_delete);
             total_linear_loss = _total_loss + i_ptr->linear_loss;
 
             double rmse = sqrt(total_linear_loss / N);
             all_rmses.push_back(rmse);
-
 
             original_rSib->rSib = NULL;
             original_rSib->setInvalid();
@@ -716,6 +1161,10 @@ void get_complete_partition_borders(const keyArray &X, const doubleArray &probs,
             cs.insert(i_ptr);
         }
     }
+    stop = chrono::system_clock::now();
+    duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    response_time = static_cast<double>(duration.count());
+    cout << "step-4 takes " << response_time << " seconds." << endl;
 
     assert(min_size == border_set.size());
     assert(min_size + deleted_borders.size() == max_s_j);
@@ -891,32 +1340,6 @@ void build_mirror_from_given_layout(const keyArray &X, const doubleArray &probs,
     mirror.push_back(root_info);
 }
 
-
-double loss_est2(long n_nodes, long N, int h, doubleVec &rmses, long next_n_nodes, double r, double rmse_low_level) {
-    double avg_fan = 1.0 * n_nodes / next_n_nodes;
-    double _n_stages = log(n_nodes) / log(avg_fan);
-    int n_stages = static_cast<int>(_n_stages);
-    double residual = _n_stages - n_stages;
-    int idx = N / avg_fan;
-
-    double next_level_rmse = rmses[idx];
-    double s = 1;
-    for (int i = 0; i <= n_stages; ++i) {
-        s *= r;
-    }
-    double last_item = s * r * residual;
-    s = (s - r) / (r - 1) + last_item;
-
-    double rh = 1;
-    for (int i = 0; i < h; ++i) {
-        rh *= r;
-    }
-
-    double avg_linear_loss = rh * (rmse_low_level + s * next_level_rmse);
-    avg_linear_loss = ((avg_linear_loss > 1) ? (2 * log(avg_linear_loss) / log(2.0)) : 0);
-    double loss = ((2 + R1) * n_stages - 1) + (1 + R2) * avg_linear_loss;
-    return loss;
-}
 
 double loss_est_complex(int h, long n_nodes, long next_n_nodes, long N_at_h0, doubleVec &h0_rmses, double _rho, double rmse_current_height, bool print=false) {
 
@@ -1298,7 +1721,15 @@ void build_ideal_mirror(const keyArray &X, const doubleArray &probs, long N, l_m
         if (!restore_status) {
 //            get_complete_partition_borders(X, probs, N, 0, 32, fanThreashold/2, h0_borders, h0_rmses, interval_type);
             cout << "Building BU-Tree...... This step may take several minutes but will be executed once only." << endl;
+
+            auto start = chrono::system_clock::now();
             get_complete_partition_borders(X, probs, N, 0, buMinFan, fanThreashold/2, h0_borders, h0_rmses, interval_type);
+//            get_complete_partition_borders_for_lowest_layer(X, N, 0, buMinFan, fanThreashold/2, h0_borders, h0_rmses, interval_type);
+//            get_complete_partition_borders_w_sampling(X, N, 0, buMinFan, fanThreashold/2, h0_borders, h0_rmses, interval_type);
+            auto stop = chrono::system_clock::now();
+            auto duration = chrono::duration_cast<chrono::seconds>(stop - start);
+            double response_time = static_cast<double>(duration.count());
+            cout << "get_complete_partition_borders takes " << response_time << " seconds." << endl;
             string h0_borders_path = mirror_dir + "/h0_borders";
             data_utils::save_vec_data(h0_borders_path.c_str(), h0_borders);
 
@@ -1325,7 +1756,7 @@ void build_ideal_mirror(const keyArray &X, const doubleArray &probs, long N, l_m
         mirror.push_back(longVec());
         assert(h0_min_size < est_n_nodes);
 
-//        cout << "h0, est_n_nodes = " << est_n_nodes << endl;
+        cout << "h0, est_n_nodes = " << est_n_nodes << endl;
         mirror[0].insert(mirror[0].end(), h0_borders.begin(), h0_borders.begin() + est_n_nodes);
         sort(mirror[0].begin(), mirror[0].end());
 //        string h0_path = mirror_dir + "/h0.dat";

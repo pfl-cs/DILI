@@ -10,6 +10,8 @@ private:
     double sum_x;
 
     long delta_x;
+
+
 //    double sum_y;
 public:
     linearRegressor(): a(0), b(0), _de_b(0), _nu_b(0), sum_x(0), delta_x(0) {}
@@ -17,13 +19,19 @@ public:
 
 //    void init(long *data, int fanout);
     void init(long *_data, int left_start_idx, int start_idx, int fanout);
+    void init_w_sampling(long *_data, int left_start_idx, int start_idx, int fanout);
     void copy_from(linearRegressor *rhs);
 
     void merge_and_self_update(linearRegressor *rhs, int left_fan, int right_fan, long x_min);
+
     void merge(linearRegressor *lhs, linearRegressor *rhs, int left_fan, int right_fan, long x_min);
+    void merge_w_sampling(linearRegressor *lhs, linearRegressor *rhs, int left_fan, int right_fan, long x_min);
+
     void cal_ab(int fanout, long x_min);
+    void cal_ab_w_sampling(int fanout, long x_min);
 
     double cal_loss(long *data, int fanout);
+    double cal_loss_w_sampling(long *data, int fanout);
 
     void print(long *data, int fanout);
 

@@ -22,6 +22,8 @@ const long n_query_keys = 1000000l;
 long query_step = 100;
 long query_start_idx = query_step / 2;
 
+long num_adjust_stats = 0;
+
 
 const double R1 = 25.0 / 130.0;
 const double R2 = 17.0 / 130.0;

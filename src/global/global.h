@@ -48,10 +48,16 @@ extern int buMinFan;
 extern double max_expanding_ratio;
 extern double retrain_threshold;
 
+extern long num_adjust_stats;
 
 
 struct diliNode;
 struct fan2Leaf;
+
+struct SearchBound {
+    size_t start;
+    size_t stop;
+};
 
 struct pairEntry {
     keyType key; // key >= 0: ptr is the index of the record in the data array, key == -1: ptr is a child; key < - 1: this position is empty

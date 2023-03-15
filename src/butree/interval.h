@@ -19,7 +19,6 @@ struct interval{
 
     double merge_metric;
 
-
     long start_idx;
     long end_idx;
 
@@ -43,12 +42,18 @@ struct interval{
         }
     }
     double init_lr(bool force_init=false);
+    double init_lr_w_sampling(bool force_init=false);
+
     bool check_lr_delta_x();
 
     virtual void init_merge_info() = 0;
+    virtual void init_merge_info_w_sampling() = 0;
+
     virtual void cal_merge_info(int h) = 0;
+    virtual void cal_merge_info_w_sampling(int h) = 0;
 
     virtual bool merge_with_rSib(int h, bool if_merge_lr=false) = 0;
+
 
     virtual void free_data() {
         if (lr) { delete lr; lr = NULL; }

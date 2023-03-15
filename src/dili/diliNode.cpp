@@ -12,8 +12,8 @@ namespace dili_auxiliary {
     void init_insert_aux_vars() {
         if (retrain_keys) { delete[] retrain_keys; }
         if (retrain_ptrs) { delete[] retrain_ptrs; }
-        retrain_keys = new long[LEAF_MAX_CAPACIY];
-        retrain_ptrs = new long[LEAF_MAX_CAPACIY];
+        retrain_keys = new long[LEAF_MAX_CAPACIY * 2];
+        retrain_ptrs = new long[LEAF_MAX_CAPACIY * 2];
     }
 
     void free_insert_aux_vars() {
