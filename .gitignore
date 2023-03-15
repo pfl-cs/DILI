@@ -37,13 +37,6 @@
 
 cmake-build-debug
 build
-src/test
-src/other
-src/old
-src/bak
 src/compare.cpp
 src/parse.cpp
-src/data_process
-src/competitors
-src/diliWOOpt
 src/*.py
