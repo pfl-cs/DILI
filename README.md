@@ -12,7 +12,7 @@ make #or make -j 64
 
 ## Paper Citation
 
-This paper has been accepted by VLDB 2023. If you find the code useful, please cite our paper:
+Our paper has been accepted by VLDB 2023. If you find the code useful, please cite the paper:
 
 ```
 @article{li2023DILI,
