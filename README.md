@@ -1,4 +1,4 @@
-# DILL
+# DILI
 ## Compile & Run
 
 
@@ -18,8 +18,9 @@ Our paper has been accepted by VLDB 2023. If you find the code useful, please ci
 @article{li2023DILI,
   title={DILI: A Distribution-Driven Learned Index},
   author={Pengfei Li, Hua Lu, Rong Zhu, Bolin Ding, Long Yang and Gang Pan},
-  journal={VLDB},
-  year={2023},
-  volume={16}
+  journal   = {Proc. {VLDB} Endow.},
+  volume    = {16},
+  number    = {9},
+  year      = {2023}
 }
 ```
